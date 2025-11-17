@@ -4,6 +4,7 @@ import { useState } from "react";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../constants/Colors";
+// import { userService } from "../services/api";
 
 export default function Cadastro() {
   const [nome, setNome] = useState("");
@@ -13,7 +14,7 @@ export default function Cadastro() {
   const [senhaVisivel, setSenhaVisivel] = useState(false);
   const [confirmarSenhaVisivel, setConfirmarSenhaVisivel] = useState(false);
 
-  function handleCadastrar() {
+  async function handleCadastrar() {
     if (!nome || !email || !senha || !confirmarSenha) {
       Alert.alert("Atenção", "Por favor, preencha todos os campos.");
       return;
@@ -29,13 +30,45 @@ export default function Cadastro() {
       return;
     }
 
+    // VERSÃO COM API (DESCOMENTAR DEPOIS):
+    /*
+    try {
+      const dadosUsuario = {
+        name: nome,
+        email: email,
+        password: senha,
+        role: "CANDIDATE"
+      };
+
+      await userService.criar(dadosUsuario);
+      
+      Alert.alert(
+        "Sucesso", 
+        "Cadastro realizado! Faça login para continuar.",
+        [
+          {
+            text: "OK",
+            onPress: () => router.replace("/")
+          }
+        ]
+      );
+    } catch (error) {
+      console.error("Erro ao cadastrar:", error);
+      Alert.alert(
+        "Erro", 
+        "Não foi possível criar a conta. Tente novamente."
+      );
+    }
+    */
+
+    // VERSÃO FAKE (SEM API - USAR AGORA):
     Alert.alert(
       "Sucesso", 
       "Cadastro realizado com sucesso!",
       [
         {
           text: "OK",
-          onPress: () => router.replace("/(tabs)")
+          onPress: () => router.replace("/")
         }
       ]
     );

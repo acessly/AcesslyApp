@@ -3,20 +3,60 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useState } from "react";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { Colors } from "../../constants/Colors";
+import { Colors } from "../constants/Colors";
+// import { authService } from "../services/api";
 
 export default function Index() {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [senhaVisivel, setSenhaVisivel] = useState(false);
 
-  function handleContinuar() {
+  async function handleContinuar() {
     if (!email || !senha) {
       Alert.alert("Atenção", "Por favor, preencha todos os campos.");
       return;
     }
 
-    router.push({
+    // VERSÃO COM API (DESCOMENTAR DEPOIS):
+    /*
+    try {
+      const response = await authService.login(email, senha);
+      
+      Alert.alert("Sucesso", "Login realizado com sucesso!");
+      
+      router.replace({
+        pathname: "/(tabs)",
+        params: { email },
+      });
+      
+    } catch (error) {
+      console.error("Erro no login:", error);
+      
+      if (error.response?.status === 401) {
+        Alert.alert(
+          "Erro", 
+          "Email ou senha incorretos."
+        );
+      } else if (error.response?.status === 404) {
+        Alert.alert(
+          "Usuário não encontrado", 
+          "Você precisa criar uma conta primeiro.",
+          [
+            { text: "Cancelar", style: "cancel" },
+            { text: "Cadastrar", onPress: irParaCadastro }
+          ]
+        );
+      } else {
+        Alert.alert(
+          "Erro", 
+          "Não foi possível fazer login. Verifique sua conexão."
+        );
+      }
+    }
+    */
+
+    // VERSÃO FAKE (SEM API - USAR AGORA):
+    router.replace({
       pathname: "/(tabs)",
       params: { email },
     });
@@ -49,7 +89,7 @@ export default function Index() {
             <View style={styles.headerContainer}>
               <View style={styles.logoContainer}>
                 <Image
-                  source={require("../../assets/icon.png")}
+                  source={require("../assets/icon.png")}
                   style={styles.logo}
                   resizeMode="contain"
                 />
@@ -185,18 +225,9 @@ const styles = StyleSheet.create({
   logoContainer: {
     width: 110,
     height: 110,
-    borderRadius: 55,
-    backgroundColor: 'rgba(139, 92, 246, 0.15)',
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 24,
-    borderWidth: 2,
-    borderColor: 'rgba(139, 92, 246, 0.3)',
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 8,
   },
   logo: {
     width: 80,
