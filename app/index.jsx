@@ -57,7 +57,7 @@ export default function Index() {
 
     // VERSÃO FAKE (SEM API - USAR AGORA):
     router.replace({
-      pathname: "/(tabs)",
+      pathname: "/(tabs)/home",
       params: { email },
     });
   }
