@@ -3,7 +3,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useState, useEffect } from "react";
 import { useLocalSearchParams, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { Colors } from "../../constants/Colors";
+import { Colors, Fonts } from "../../constants/Colors";
 // import { vacancyService, candidacyService, authService } from "../../services/api";
 
 export default function Home() {
@@ -137,12 +137,13 @@ const styles = StyleSheet.create({
   },
   greeting: {
     fontSize: 16,
+    fontFamily: Fonts.regular,
     color: Colors.textLight,
     marginBottom: 4,
   },
   email: {
     fontSize: 20,
-    fontWeight: "bold",
+    fontFamily: Fonts.bold,
     color: Colors.white,
   },
   notificationButton: {
@@ -180,12 +181,13 @@ const styles = StyleSheet.create({
   },
   statNumber: {
     fontSize: 32,
-    fontWeight: "bold",
+    fontFamily: Fonts.bold,
     color: Colors.white,
     marginTop: 8,
   },
   statLabel: {
     fontSize: 12,
+    fontFamily: Fonts.regular,
     color: Colors.textLight,
     marginTop: 4,
     textAlign: "center",
@@ -196,7 +198,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 20,
-    fontWeight: "bold",
+    fontFamily: Fonts.bold,
     color: Colors.white,
     marginBottom: 16,
   },
@@ -224,12 +226,13 @@ const styles = StyleSheet.create({
   },
   actionTitle: {
     fontSize: 16,
-    fontWeight: "600",
+    fontFamily: Fonts.semiBold,
     color: Colors.white,
     marginBottom: 4,
   },
   actionSubtitle: {
     fontSize: 13,
+    fontFamily: Fonts.regular,
     color: Colors.textLight,
   },
   banner: {
@@ -250,12 +253,13 @@ const styles = StyleSheet.create({
   },
   bannerTitle: {
     fontSize: 16,
-    fontWeight: "bold",
+    fontFamily: Fonts.bold,
     color: Colors.white,
     marginBottom: 6,
   },
   bannerText: {
     fontSize: 14,
+    fontFamily: Fonts.regular,
     color: Colors.textLight,
     lineHeight: 20,
   },

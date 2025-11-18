@@ -66,6 +66,14 @@ export default function Index() {
     router.push("/cadastro");
   }
 
+  function handleEsqueceuSenha() {
+  Alert.alert(
+    "Recuperar senha",
+    "Digite seu e-mail no campo acima e entraremos em contato com instruções para redefinir sua senha.",
+    [{ text: "OK" }]
+  );
+}
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
@@ -141,7 +149,7 @@ export default function Index() {
                 </TouchableOpacity>
               </View>
 
-              <TouchableOpacity style={styles.forgotPassword}>
+              <TouchableOpacity style={styles.forgotPassword} onPress={handleEsqueceuSenha}>
                 <Text style={styles.forgotText}>Esqueceu a senha?</Text>
               </TouchableOpacity>
 
@@ -235,7 +243,7 @@ const styles = StyleSheet.create({
   },
   brandName: {
     fontSize: 48,
-    fontWeight: "bold",
+    fontFamily: 'Inter_700Bold',
     color: Colors.white,
     marginBottom: 4,
     letterSpacing: 2,
@@ -249,6 +257,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 14,
+    fontFamily: 'Inter_700Bold',
     color: Colors.textLight,
     textAlign: "center",
     paddingHorizontal: 40,
@@ -268,7 +277,7 @@ const styles = StyleSheet.create({
   },
   formTitle: {
     fontSize: 22,
-    fontWeight: "bold",
+    fontFamily: 'Inter_700Bold',
     color: Colors.white,
     marginBottom: 24,
   },
@@ -288,6 +297,7 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
+    fontFamily: 'Inter_700Bold',
     fontSize: 16,
     color: Colors.white,
   },
@@ -300,6 +310,7 @@ const styles = StyleSheet.create({
   },
   forgotText: {
     color: Colors.primary,
+    fontFamily: 'Inter_700Bold',
     fontSize: 14,
     fontWeight: "600",
   },
@@ -331,9 +342,11 @@ const styles = StyleSheet.create({
   footerText: {
     color: Colors.textLight,
     fontSize: 14,
+    fontFamily: 'Inter_700Bold',
   },
   footerLink: {
     color: Colors.primary,
     fontWeight: "bold",
+    fontFamily: 'Inter_700Bold',
   },
 });

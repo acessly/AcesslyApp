@@ -3,7 +3,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useState } from "react";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { Colors } from "../../constants/Colors";
+import { Colors, Fonts } from "../../constants/Colors";
 // import { candidateService, authService } from "../../services/api";
 
 export default function EditarPerfil() {
@@ -303,7 +303,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: "bold",
+    fontFamily: Fonts.bold,
     color: Colors.white,
   },
   placeholder: {
@@ -318,7 +318,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: "bold",
+    fontFamily: Fonts.bold,
     color: Colors.white,
     marginBottom: 16,
   },
@@ -327,6 +327,7 @@ const styles = StyleSheet.create({
   },
   inputLabel: {
     fontSize: 14,
+    fontFamily: Fonts.regular,
     color: Colors.textLight,
     marginBottom: 8,
   },
@@ -349,6 +350,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 16,
+    fontFamily: Fonts.regular,
     color: Colors.white,
   },
   textArea: {
@@ -372,7 +374,7 @@ const styles = StyleSheet.create({
   },
   salvarText: {
     fontSize: 18,
-    fontWeight: "bold",
+    fontFamily: Fonts.bold,
     color: Colors.background,
   },
   deletarButton: {
@@ -387,7 +389,7 @@ const styles = StyleSheet.create({
   },
   deletarText: {
     fontSize: 16,
-    fontWeight: "600",
+    fontFamily: Fonts.semiBold,
     color: Colors.error,
   },
 });

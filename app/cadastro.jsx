@@ -278,13 +278,14 @@ const styles = StyleSheet.create({
   },
   brandName: {
     fontSize: 36,
-    fontWeight: "bold",
+    fontFamily: 'Inter_700Bold',
     color: Colors.white,
     marginBottom: 8,
     letterSpacing: 1,
   },
   subtitle: {
     fontSize: 14,
+    fontFamily: 'Inter_700Bold',
     color: Colors.textLight,
     textAlign: "center",
     paddingHorizontal: 32,
@@ -304,7 +305,7 @@ const styles = StyleSheet.create({
   },
   formTitle: {
     fontSize: 20,
-    fontWeight: "bold",
+    fontFamily: 'Inter_700Bold',
     color: Colors.white,
     marginBottom: 20,
   },
@@ -324,6 +325,7 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
+    fontFamily: 'Inter_700Bold',
     fontSize: 16,
     color: Colors.white,
   },
@@ -347,7 +349,7 @@ const styles = StyleSheet.create({
   botaoTexto: {
     color: Colors.background,
     fontSize: 18,
-    fontWeight: "bold",
+    fontFamily: 'Inter_700Bold',
   },
   arrowIcon: {
     marginLeft: 8,
@@ -358,6 +360,7 @@ const styles = StyleSheet.create({
   },
   termosTexto: {
     fontSize: 12,
+    fontFamily: 'Inter_700Bold',
     color: Colors.textLight,
     textAlign: "center",
     lineHeight: 18,
@@ -372,6 +375,7 @@ const styles = StyleSheet.create({
   },
   footerText: {
     color: Colors.textLight,
+    fontFamily: 'Inter_700Bold',
     fontSize: 14,
   },
   footerLink: {

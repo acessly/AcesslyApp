@@ -3,7 +3,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useState, useEffect } from "react";
 import { useLocalSearchParams, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { Colors } from "../../constants/Colors";
+import { Colors, Fonts } from "../../constants/Colors";
 // import { vacancyService, candidacyService, authService } from "../../services/api";
 
 export default function VagaDetalhes() {
@@ -54,7 +54,7 @@ export default function VagaDetalhes() {
   }
   */
 
-  // VERSÃO FAKE (SEM API)):
+  // VERSÃO FAKE (SEM API):
   const vagaFake = {
     id: id,
     title: titulo || "Desenvolvedor Front-end",
@@ -237,7 +237,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: "bold",
+    fontFamily: Fonts.bold,
     color: Colors.white,
   },
   placeholder: {
@@ -267,13 +267,14 @@ const styles = StyleSheet.create({
   },
   vagaTitulo: {
     fontSize: 22,
-    fontWeight: "bold",
+    fontFamily: Fonts.bold,
     color: Colors.white,
     textAlign: "center",
     marginBottom: 8,
   },
   vagaEmpresa: {
     fontSize: 16,
+    fontFamily: Fonts.regular,
     color: Colors.textLight,
     marginBottom: 16,
   },
@@ -289,11 +290,12 @@ const styles = StyleSheet.create({
   },
   detailText: {
     fontSize: 14,
+    fontFamily: Fonts.regular,
     color: Colors.textLight,
   },
   salario: {
     fontSize: 20,
-    fontWeight: "bold",
+    fontFamily: Fonts.bold,
     color: Colors.primary,
   },
   section: {
@@ -302,7 +304,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: "bold",
+    fontFamily: Fonts.bold,
     color: Colors.white,
     marginBottom: 12,
   },
@@ -315,6 +317,7 @@ const styles = StyleSheet.create({
   },
   descriptionText: {
     fontSize: 14,
+    fontFamily: Fonts.regular,
     color: Colors.white,
     lineHeight: 22,
   },
@@ -326,6 +329,7 @@ const styles = StyleSheet.create({
   },
   listText: {
     fontSize: 14,
+    fontFamily: Fonts.regular,
     color: Colors.white,
     flex: 1,
   },
@@ -358,7 +362,7 @@ const styles = StyleSheet.create({
   },
   candidatarText: {
     fontSize: 18,
-    fontWeight: "bold",
+    fontFamily: Fonts.bold,
     color: Colors.background,
   },
 });

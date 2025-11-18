@@ -3,7 +3,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useState } from "react";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { Colors } from "../../constants/Colors";
+import { Colors, Fonts } from "../../constants/Colors";
 // import { candidateService, authService } from "../../services/api";
 
 export default function Perfil() {
@@ -182,7 +182,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 28,
-    fontWeight: "bold",
+    fontFamily: Fonts.bold,
     color: Colors.white,
   },
   editButton: {
@@ -218,12 +218,13 @@ const styles = StyleSheet.create({
   },
   profileName: {
     fontSize: 24,
-    fontWeight: "bold",
+    fontFamily: Fonts.bold,
     color: Colors.white,
     marginBottom: 4,
   },
   profileEmail: {
     fontSize: 14,
+    fontFamily: Fonts.regular,
     color: Colors.textLight,
     marginBottom: 16,
   },
@@ -241,8 +242,8 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontSize: 12,
+    fontFamily: Fonts.semiBold,
     color: Colors.success,
-    fontWeight: "600",
   },
   section: {
     paddingHorizontal: 24,
@@ -250,7 +251,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: "bold",
+    fontFamily: Fonts.bold,
     color: Colors.white,
     marginBottom: 12,
   },
@@ -272,11 +273,13 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     fontSize: 12,
+    fontFamily: Fonts.regular,
     color: Colors.textLight,
     marginBottom: 2,
   },
   infoValue: {
     fontSize: 16,
+    fontFamily: Fonts.regular,
     color: Colors.white,
   },
   divider: {
@@ -298,11 +301,12 @@ const styles = StyleSheet.create({
   },
   skillText: {
     fontSize: 14,
+    fontFamily: Fonts.regular,
     color: Colors.primary,
-    fontWeight: "500",
   },
   experienceText: {
     fontSize: 14,
+    fontFamily: Fonts.regular,
     color: Colors.white,
     lineHeight: 22,
   },
@@ -319,7 +323,7 @@ const styles = StyleSheet.create({
   },
   logoutText: {
     fontSize: 16,
+    fontFamily: Fonts.semiBold,
     color: Colors.error,
-    fontWeight: "600",
   },
 });

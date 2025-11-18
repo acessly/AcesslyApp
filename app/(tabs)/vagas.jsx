@@ -3,7 +3,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useState, useEffect } from "react";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { Colors } from "../../constants/Colors";
+import { Colors, Fonts } from "../../constants/Colors";
 // import { vacancyService } from "../../services/api";
 
 export default function Vagas() {
@@ -173,12 +173,13 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 28,
-    fontWeight: "bold",
+    fontFamily: Fonts.bold,
     color: Colors.white,
     marginBottom: 4,
   },
   headerSubtitle: {
     fontSize: 14,
+    fontFamily: Fonts.regular,
     color: Colors.textLight,
   },
   filterContainer: {
@@ -199,9 +200,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   filterText: {
+    fontFamily: Fonts.regular,
     color: Colors.white,
     fontSize: 14,
-    fontWeight: "500",
   },
   scrollView: {
     flex: 1,
@@ -234,12 +235,13 @@ const styles = StyleSheet.create({
   },
   vagaTitulo: {
     fontSize: 18,
-    fontWeight: "bold",
+    fontFamily: Fonts.bold,
     color: Colors.white,
     marginBottom: 4,
   },
   vagaEmpresa: {
     fontSize: 14,
+    fontFamily: Fonts.regular,
     color: Colors.textLight,
   },
   vagaDetails: {
@@ -254,11 +256,12 @@ const styles = StyleSheet.create({
   },
   detailText: {
     fontSize: 13,
+    fontFamily: Fonts.regular,
     color: Colors.textLight,
   },
   vagaSalario: {
     fontSize: 16,
-    fontWeight: "bold",
+    fontFamily: Fonts.bold,
     color: Colors.primary,
     marginBottom: 12,
   },
@@ -278,6 +281,7 @@ const styles = StyleSheet.create({
   },
   acessibilidadeText: {
     fontSize: 12,
+    fontFamily: Fonts.regular,
     color: Colors.textLight,
   },
 });

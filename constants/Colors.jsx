@@ -19,3 +19,9 @@ export const Colors = {
   overlay: 'rgba(0, 0, 0, 0.5)',
   inputBg: '#0F172A',
 };
+
+export const Fonts = {
+  regular: 'Inter_400Regular',
+  semiBold: 'Inter_600SemiBold',
+  bold: 'Inter_700Bold',
+};

@@ -52,6 +52,20 @@ export default function TabsLayout() {
       />
 
       <Tabs.Screen
+        name="candidaturas"
+        options={{
+          title: "Candidaturas",
+          tabBarIcon: ({ focused, size }) => (
+            <Ionicons 
+              name={focused ? "document-text" : "document-text-outline"} 
+              color={focused ? Colors.primary : Colors.textLight} 
+              size={size} 
+            />
+          ),
+        }}
+      />
+
+      <Tabs.Screen
         name="perfil"
         options={{
           title: "Perfil",
