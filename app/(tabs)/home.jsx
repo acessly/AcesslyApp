@@ -41,6 +41,10 @@ export default function Home() {
     router.push("/(tabs)/perfil");
   }
 
+  function irParaEmpresas() {
+    router.push("/empresas");
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
@@ -96,7 +100,7 @@ export default function Home() {
             <Ionicons name="chevron-forward" size={20} color={Colors.textLight} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionCard}>
+          <TouchableOpacity style={styles.actionCard} onPress={irParaEmpresas}>
             <View style={styles.actionIcon}>
               <Ionicons name="business" size={24} color={Colors.accent} />
             </View>

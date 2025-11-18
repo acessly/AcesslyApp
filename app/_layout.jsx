@@ -30,6 +30,7 @@ export default function RootLayout() {
     >
       <Stack.Screen name="index" />
       <Stack.Screen name="cadastro" />
+      <Stack.Screen name="empresas" />
       <Stack.Screen name="(tabs)" />
     </Stack>
   );
