@@ -100,17 +100,6 @@ export default function Vagas() {
         <Text style={styles.headerSubtitle}>{listaVagas.length} oportunidades encontradas</Text>
       </View>
 
-      <View style={styles.filterContainer}>
-        <TouchableOpacity style={styles.filterButton}>
-          <Ionicons name="filter" size={20} color={Colors.primary} />
-          <Text style={styles.filterText}>Filtrar</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.filterButton}>
-          <Ionicons name="location" size={20} color={Colors.primary} />
-          <Text style={styles.filterText}>Localização</Text>
-        </TouchableOpacity>
-      </View>
-
       <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollView}>
         {listaVagas.map((vaga) => (
           <TouchableOpacity 
