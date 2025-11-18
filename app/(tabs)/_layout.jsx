@@ -1,83 +1,37 @@
-import { Tabs } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
-import { Colors } from "../../constants/Colors";
+import { Stack } from "expo-router";
+import { useFonts, Inter_400Regular, Inter_600SemiBold, Inter_700Bold } from "@expo-google-fonts/inter";
+import * as SplashScreen from 'expo-splash-screen';
+import { useEffect } from "react";
 
-export default function TabsLayout() {
+SplashScreen.preventAutoHideAsync();
+
+export default function RootLayout() {
+  const [fontsLoaded] = useFonts({
+    Inter_400Regular,
+    Inter_600SemiBold,
+    Inter_700Bold,
+  });
+
+  useEffect(() => {
+    if (fontsLoaded) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded]);
+
+  if (!fontsLoaded) {
+    return null;
+  }
+
   return (
-    <Tabs
+    <Stack
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: Colors.primary,
-        tabBarInactiveTintColor: Colors.textLight,
-        tabBarStyle: { 
-          backgroundColor: Colors.backgroundCard,
-          borderTopWidth: 1,
-          borderTopColor: Colors.border,
-          height: 60,
-          paddingBottom: 8,
-          paddingTop: 8,
-        },
-        tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: "600",
-        },
       }}
     >
-      <Tabs.Screen
-        name="home"
-        options={{
-          title: "Início",
-          tabBarIcon: ({ focused, size }) => (
-            <Ionicons 
-              name={focused ? "home" : "home-outline"} 
-              color={focused ? Colors.primary : Colors.textLight} 
-              size={size} 
-            />
-          ),
-        }}
-      />
-
-      <Tabs.Screen
-        name="vagas"
-        options={{
-          title: "Vagas",
-          tabBarIcon: ({ focused, size }) => (
-            <Ionicons 
-              name={focused ? "briefcase" : "briefcase-outline"} 
-              color={focused ? Colors.primary : Colors.textLight} 
-              size={size} 
-            />
-          ),
-        }}
-      />
-
-      <Tabs.Screen
-        name="candidaturas"
-        options={{
-          title: "Candidaturas",
-          tabBarIcon: ({ focused, size }) => (
-            <Ionicons 
-              name={focused ? "document-text" : "document-text-outline"} 
-              color={focused ? Colors.primary : Colors.textLight} 
-              size={size} 
-            />
-          ),
-        }}
-      />
-
-      <Tabs.Screen
-        name="perfil"
-        options={{
-          title: "Perfil",
-          tabBarIcon: ({ focused, size }) => (
-            <Ionicons 
-              name={focused ? "person" : "person-outline"} 
-              color={focused ? Colors.primary : Colors.textLight} 
-              size={size} 
-            />
-          ),
-        }}
-      />
-    </Tabs>
+      <Stack.Screen name="index" />
+      <Stack.Screen name="cadastro" />
+      <Stack.Screen name="empresas" />
+      <Stack.Screen name="(tabs)" />
+    </Stack>
   );
 }

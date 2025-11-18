@@ -1,19 +1,17 @@
-import { Text, StyleSheet, View, TouchableOpacity, ScrollView, StatusBar, Alert } from "react-native";
+import { Text, StyleSheet, View, TouchableOpacity, ScrollView, StatusBar, Alert, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useState, useEffect } from "react";
 import { useLocalSearchParams, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors, Fonts } from "../../constants/Colors";
-// import { vacancyService, candidacyService, authService } from "../../services/api";
+import { vacancyService, candidacyService, authService } from "../../services/api";
 
 export default function VagaDetalhes() {
   const { id, titulo, empresa } = useLocalSearchParams();
   const [vaga, setVaga] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [candidatando, setCandidatando] = useState(false);
 
-  // VERSÃO COM API (DESCOMENTAR DEPOIS):
-  /*
   useEffect(() => {
     carregarVaga();
   }, []);
@@ -25,88 +23,63 @@ export default function VagaDetalhes() {
       setVaga(response);
     } catch (error) {
       console.error("Erro ao carregar vaga:", error);
+      // Usar dados passados por parâmetro como fallback
+      setVaga({
+        id: id,
+        title: titulo || "Vaga",
+        companyName: empresa || "Empresa",
+      });
     } finally {
       setLoading(false);
     }
   }
 
   async function handleCandidatar() {
-    setCandidatando(true);
-    try {
-      const user = await authService.getCurrentUser();
-      
-      await candidacyService.criar({
-        candidateId: user.userId,
-        vacancyId: id
-      });
-
+    const user = await authService.getCurrentUser();
+    
+    if (!user.candidateId) {
       Alert.alert(
-        "Sucesso",
-        "Candidatura enviada com sucesso!",
-        [{ text: "OK", onPress: () => router.back() }]
+        "Perfil incompleto",
+        "Você precisa completar seu perfil de candidato antes de se candidatar a vagas.",
+        [
+          { text: "Cancelar", style: "cancel" },
+          { text: "Ir para Perfil", onPress: () => router.push("/(tabs)/perfil") }
+        ]
       );
-    } catch (error) {
-      console.error("Erro ao candidatar:", error);
-      Alert.alert("Erro", "Não foi possível enviar a candidatura.");
-    } finally {
-      setCandidatando(false);
+      return;
     }
-  }
-  */
 
-  // VERSÃO FAKE (SEM API):
-  const vagaFake = {
-    id: id,
-    title: titulo || "Desenvolvedor Front-end",
-    company: { name: empresa || "Tech Solutions" },
-    city: "São Paulo",
-    vacancyType: "REMOTE",
-    salary: "R$ 5.000 - R$ 7.000",
-    description: "Estamos em busca de um desenvolvedor front-end para atuar em projetos inovadores. O profissional será responsável por desenvolver interfaces acessíveis e responsivas.",
-    requirements: [
-      "Experiência com React ou React Native",
-      "Conhecimento em HTML, CSS e JavaScript",
-      "Familiaridade com metodologias ágeis",
-      "Boa comunicação",
-    ],
-    benefits: [
-      "Vale refeição",
-      "Plano de saúde",
-      "Horário flexível",
-      "Home office",
-    ],
-    accessibilityOffered: [
-      "Leitor de tela compatível",
-      "Horário flexível",
-      "Acompanhamento personalizado",
-    ],
-  };
-
-  const dadosVaga = vaga || vagaFake;
-
-  function getTipoLabel(tipo) {
-    const tipos = {
-      REMOTE: "Remoto",
-      HYBRID: "Híbrido",
-      PRESENTIAL: "Presencial",
-    };
-    return tipos[tipo] || tipo;
-  }
-
-  function handleCandidatar() {
     Alert.alert(
       "Confirmar candidatura",
-      `Deseja se candidatar para a vaga de ${dadosVaga.title}?`,
+      `Deseja se candidatar para a vaga de ${vaga?.title || titulo}?`,
       [
         { text: "Cancelar", style: "cancel" },
         { 
           text: "Candidatar", 
-          onPress: () => {
-            Alert.alert(
-              "Sucesso",
-              "Candidatura enviada com sucesso!",
-              [{ text: "OK", onPress: () => router.back() }]
-            );
+          onPress: async () => {
+            setCandidatando(true);
+            try {
+              await candidacyService.criar({
+                candidateId: parseInt(user.candidateId),
+                vacancyId: parseInt(id),
+                applicationDate: new Date().toISOString().split('T')[0]
+              });
+
+              Alert.alert(
+                "Sucesso",
+                "Candidatura enviada com sucesso!",
+                [{ text: "OK", onPress: () => router.back() }]
+              );
+            } catch (error) {
+              console.error("Erro ao candidatar:", error);
+              if (error.response?.status === 400) {
+                Alert.alert("Atenção", "Você já se candidatou a esta vaga.");
+              } else {
+                Alert.alert("Erro", "Não foi possível enviar a candidatura.");
+              }
+            } finally {
+              setCandidatando(false);
+            }
           }
         }
       ]
@@ -116,6 +89,41 @@ export default function VagaDetalhes() {
   function voltar() {
     router.back();
   }
+
+  function getTipoLabel(tipo) {
+    const tipos = {
+      REMOTE: "Remoto",
+      HYBRID: "Híbrido",
+      PRESENTIAL: "Presencial",
+      IN_PERSON: "Presencial",
+    };
+    return tipos[tipo] || tipo;
+  }
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+          <Text style={styles.loadingText}>Carregando vaga...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Dados da vaga (da API ou fallback)
+  const dadosVaga = vaga || {
+    id: id,
+    title: titulo || "Vaga",
+    companyName: empresa || "Empresa",
+    city: "Não informado",
+    state: "",
+    vacancyType: "REMOTE",
+    salary: 0,
+    description: "Descrição não disponível",
+    accessibilityOffered: "Não informado",
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -136,12 +144,14 @@ export default function VagaDetalhes() {
             <Ionicons name="business" size={32} color={Colors.primary} />
           </View>
           <Text style={styles.vagaTitulo}>{dadosVaga.title}</Text>
-          <Text style={styles.vagaEmpresa}>{dadosVaga.company?.name || dadosVaga.company}</Text>
+          <Text style={styles.vagaEmpresa}>{dadosVaga.companyName}</Text>
           
           <View style={styles.vagaDetails}>
             <View style={styles.detailItem}>
               <Ionicons name="location-outline" size={18} color={Colors.textLight} />
-              <Text style={styles.detailText}>{dadosVaga.city}</Text>
+              <Text style={styles.detailText}>
+                {dadosVaga.city}{dadosVaga.state ? `, ${dadosVaga.state}` : ""}
+              </Text>
             </View>
             <View style={styles.detailItem}>
               <Ionicons name="briefcase-outline" size={18} color={Colors.textLight} />
@@ -149,7 +159,11 @@ export default function VagaDetalhes() {
             </View>
           </View>
           
-          <Text style={styles.salario}>{dadosVaga.salary}</Text>
+          {dadosVaga.salary > 0 && (
+            <Text style={styles.salario}>
+              R$ {dadosVaga.salary.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+            </Text>
+          )}
         </View>
 
         <View style={styles.section}>
@@ -160,38 +174,12 @@ export default function VagaDetalhes() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Requisitos</Text>
-          <View style={styles.sectionCard}>
-            {dadosVaga.requirements.map((req, index) => (
-              <View key={index} style={styles.listItem}>
-                <Ionicons name="checkmark-circle" size={18} color={Colors.success} />
-                <Text style={styles.listText}>{req}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Benefícios</Text>
-          <View style={styles.sectionCard}>
-            {dadosVaga.benefits.map((benefit, index) => (
-              <View key={index} style={styles.listItem}>
-                <Ionicons name="gift-outline" size={18} color={Colors.primary} />
-                <Text style={styles.listText}>{benefit}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-
-        <View style={styles.section}>
           <Text style={styles.sectionTitle}>Acessibilidade Oferecida</Text>
           <View style={styles.sectionCard}>
-            {dadosVaga.accessibilityOffered.map((item, index) => (
-              <View key={index} style={styles.listItem}>
-                <Ionicons name="accessibility" size={18} color={Colors.secondary} />
-                <Text style={styles.listText}>{item}</Text>
-              </View>
-            ))}
+            <View style={styles.listItem}>
+              <Ionicons name="accessibility" size={18} color={Colors.secondary} />
+              <Text style={styles.listText}>{dadosVaga.accessibilityOffered}</Text>
+            </View>
           </View>
         </View>
 
@@ -201,11 +189,15 @@ export default function VagaDetalhes() {
 
       <View style={styles.footer}>
         <TouchableOpacity 
-          style={styles.candidatarButton} 
+          style={[styles.candidatarButton, candidatando && styles.candidatarButtonDisabled]} 
           onPress={handleCandidatar}
           disabled={candidatando}
         >
-          <Ionicons name="send" size={20} color={Colors.background} />
+          {candidatando ? (
+            <ActivityIndicator size="small" color={Colors.background} />
+          ) : (
+            <Ionicons name="send" size={20} color={Colors.background} />
+          )}
           <Text style={styles.candidatarText}>
             {candidatando ? "Enviando..." : "Candidatar-se"}
           </Text>
@@ -219,6 +211,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    fontFamily: Fonts.regular,
+    color: Colors.textLight,
   },
   header: {
     flexDirection: "row",
@@ -323,15 +326,15 @@ const styles = StyleSheet.create({
   },
   listItem: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     gap: 12,
-    paddingVertical: 8,
   },
   listText: {
     fontSize: 14,
     fontFamily: Fonts.regular,
     color: Colors.white,
     flex: 1,
+    lineHeight: 22,
   },
   bottomSpacing: {
     height: 100,
@@ -359,6 +362,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.4,
     shadowRadius: 16,
     elevation: 8,
+  },
+  candidatarButtonDisabled: {
+    opacity: 0.7,
   },
   candidatarText: {
     fontSize: 18,

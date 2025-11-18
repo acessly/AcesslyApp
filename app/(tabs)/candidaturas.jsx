@@ -1,17 +1,15 @@
-import { Text, StyleSheet, View, TouchableOpacity, ScrollView, StatusBar } from "react-native";
+import { Text, StyleSheet, View, TouchableOpacity, ScrollView, StatusBar, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useState, useEffect } from "react";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors, Fonts } from "../../constants/Colors";
-// import { candidacyService, authService } from "../../services/api";
+import { candidacyService, authService } from "../../services/api";
 
 export default function Candidaturas() {
   const [candidaturas, setCandidaturas] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  // VERSÃO COM API (DESCOMENTAR DEPOIS):
-  /*
   useEffect(() => {
     carregarCandidaturas();
   }, []);
@@ -30,49 +28,6 @@ export default function Candidaturas() {
       setLoading(false);
     }
   }
-  */
-
-  // VERSÃO FAKE (SEM API - USAR AGORA):
-  const candidaturasFake = [
-    {
-      id: 1,
-      vacancy: {
-        id: 1,
-        title: "Desenvolvedor Front-end",
-        company: { name: "Tech Solutions" },
-        city: "São Paulo",
-        vacancyType: "REMOTE",
-      },
-      status: "APPROVED",
-      appliedAt: "2024-01-15",
-    },
-    {
-      id: 2,
-      vacancy: {
-        id: 2,
-        title: "Analista de RH",
-        company: { name: "Inclusiva Corp" },
-        city: "Rio de Janeiro",
-        vacancyType: "HYBRID",
-      },
-      status: "UNDER_ANALYSIS",
-      appliedAt: "2024-01-10",
-    },
-    {
-      id: 3,
-      vacancy: {
-        id: 3,
-        title: "Designer UX/UI",
-        company: { name: "Creative Agency" },
-        city: "Belo Horizonte",
-        vacancyType: "PRESENTIAL",
-      },
-      status: "REJECTED",
-      appliedAt: "2024-01-05",
-    },
-  ];
-
-  const listaCandidaturas = candidaturas.length > 0 ? candidaturas : candidaturasFake;
 
   function getStatusLabel(status) {
     const labels = {
@@ -106,6 +61,7 @@ export default function Candidaturas() {
       REMOTE: "Remoto",
       HYBRID: "Híbrido",
       PRESENTIAL: "Presencial",
+      IN_PERSON: "Presencial",
     };
     return tipos[tipo] || tipo;
   }
@@ -117,7 +73,7 @@ export default function Candidaturas() {
     });
   }
 
-    if (loading) {
+  if (loading) {
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="light-content" backgroundColor={Colors.background} />

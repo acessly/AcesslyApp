@@ -4,34 +4,37 @@ import { useState, useEffect } from "react";
 import { useLocalSearchParams, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors, Fonts } from "../../constants/Colors";
-// import { vacancyService, candidacyService, authService } from "../../services/api";
+import { vacancyService, candidacyService, authService } from "../../services/api";
 
 export default function Home() {
   const { email } = useLocalSearchParams();
-  const [totalVagas, setTotalVagas] = useState(24);
-  const [totalCandidaturas, setTotalCandidaturas] = useState(5);
+  const [totalVagas, setTotalVagas] = useState(0);
+  const [totalCandidaturas, setTotalCandidaturas] = useState(0);
+  const [userName, setUserName] = useState("");
 
-  // VERSÃO COM API (DESCOMENTAR DEPOIS):
-  /*
   useEffect(() => {
     carregarDados();
   }, []);
 
   async function carregarDados() {
     try {
-      const vagasResponse = await vacancyService.listar(0, 1);
-      setTotalVagas(vagasResponse.totalElements);
-
+      // Carregar dados do usuário
       const user = await authService.getCurrentUser();
-      if (user.userId) {
-        const candidaturasResponse = await candidacyService.listarPorCandidato(user.userId, 0, 1);
-        setTotalCandidaturas(candidaturasResponse.totalElements);
+      setUserName(user.name || email || "usuário");
+
+      // Carregar total de vagas
+      const vagasResponse = await vacancyService.listar(0, 1);
+      setTotalVagas(vagasResponse.totalElements || 0);
+
+      // Carregar total de candidaturas do usuário
+      if (user.candidateId) {
+        const candidaturasResponse = await candidacyService.listarPorCandidato(user.candidateId, 0, 1);
+        setTotalCandidaturas(candidaturasResponse.totalElements || 0);
       }
     } catch (error) {
       console.error("Erro ao carregar dados:", error);
     }
   }
-  */
 
   function irParaVagas() {
     router.push("/(tabs)/vagas");
@@ -53,7 +56,7 @@ export default function Home() {
         <View style={styles.header}>
           <View>
             <Text style={styles.greeting}>Olá, seja bem-vindo!</Text>
-            <Text style={styles.email}>{email || "usuário"}</Text>
+            <Text style={styles.email}>{userName}</Text>
           </View>
           <TouchableOpacity style={styles.notificationButton}>
             <Ionicons name="notifications-outline" size={24} color={Colors.white} />
