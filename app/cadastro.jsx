@@ -1,22 +1,26 @@
-import { Text, TextInput, StyleSheet, View, Alert, TouchableOpacity, StatusBar, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
+import { Text, TextInput, StyleSheet, View, Alert, TouchableOpacity, StatusBar, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useState } from "react";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../constants/Colors";
-// import { userService } from "../services/api";
+import { userService, authService, candidateService } from "../services/api";
 
 export default function Cadastro() {
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [confirmarSenha, setConfirmarSenha] = useState("");
+  const [telefone, setTelefone] = useState("");
+  const [cidade, setCidade] = useState("");
+  const [estado, setEstado] = useState("");
   const [senhaVisivel, setSenhaVisivel] = useState(false);
   const [confirmarSenhaVisivel, setConfirmarSenhaVisivel] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   async function handleCadastrar() {
     if (!nome || !email || !senha || !confirmarSenha) {
-      Alert.alert("Atenção", "Por favor, preencha todos os campos.");
+      Alert.alert("Atenção", "Por favor, preencha todos os campos obrigatórios.");
       return;
     }
 
@@ -30,48 +34,66 @@ export default function Cadastro() {
       return;
     }
 
-    // VERSÃO COM API (DESCOMENTAR DEPOIS):
-    /*
+    setLoading(true);
     try {
+      // 1. Criar usuário
       const dadosUsuario = {
         name: nome,
         email: email,
         password: senha,
-        role: "CANDIDATE"
+        userRole: "CANDIDATE",
+        city: cidade || "São Paulo",
+        state: estado || "SP",
+        phone: telefone || "(11) 00000-0000"
       };
 
-      await userService.criar(dadosUsuario);
+      const userResponse = await userService.criar(dadosUsuario);
+      const userId = userResponse.id;
+
+      // 2. Fazer login para obter token
+      await authService.login(email, senha);
+
+      // 3. Criar perfil de candidato
+      const dadosCandidato = {
+        userId: userId,
+        disabilityType: "NOT_INFORMED",
+        skills: "",
+        requiredAcessibility: ""
+      };
+
+      const candidateResponse = await candidateService.criar(dadosCandidato);
+      
+      // Salvar candidateId no AsyncStorage
+      const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+      await AsyncStorage.setItem('candidateId', candidateResponse.id.toString());
       
       Alert.alert(
         "Sucesso", 
-        "Cadastro realizado! Faça login para continuar.",
+        "Cadastro realizado com sucesso! Complete seu perfil para aumentar suas chances.",
         [
           {
             text: "OK",
-            onPress: () => router.replace("/")
+            onPress: () => router.replace("/(tabs)/home")
           }
         ]
       );
     } catch (error) {
       console.error("Erro ao cadastrar:", error);
-      Alert.alert(
-        "Erro", 
-        "Não foi possível criar a conta. Tente novamente."
-      );
+      
+      if (error.response?.status === 400) {
+        Alert.alert(
+          "Erro", 
+          "Este e-mail já está cadastrado. Tente fazer login."
+        );
+      } else {
+        Alert.alert(
+          "Erro", 
+          "Não foi possível criar a conta. Tente novamente."
+        );
+      }
+    } finally {
+      setLoading(false);
     }
-    */
-
-    // VERSÃO FAKE (SEM API - USAR AGORA):
-    Alert.alert(
-      "Sucesso", 
-      "Cadastro realizado com sucesso!",
-      [
-        {
-          text: "OK",
-          onPress: () => router.replace("/")
-        }
-      ]
-    );
   }
 
   function voltarParaLogin() {
@@ -117,7 +139,7 @@ export default function Cadastro() {
                 <Ionicons name="person" size={20} color={Colors.primary} style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
-                  placeholder="Nome completo"
+                  placeholder="Nome completo *"
                   placeholderTextColor={Colors.textLight}
                   value={nome}
                   onChangeText={setNome}
@@ -128,7 +150,7 @@ export default function Cadastro() {
                 <Ionicons name="mail" size={20} color={Colors.primary} style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
-                  placeholder="Seu e-mail"
+                  placeholder="Seu e-mail *"
                   placeholderTextColor={Colors.textLight}
                   value={email}
                   onChangeText={setEmail}
@@ -138,10 +160,47 @@ export default function Cadastro() {
               </View>
 
               <View style={styles.inputContainer}>
+                <Ionicons name="call" size={20} color={Colors.primary} style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Telefone"
+                  placeholderTextColor={Colors.textLight}
+                  value={telefone}
+                  onChangeText={setTelefone}
+                  keyboardType="phone-pad"
+                />
+              </View>
+
+              <View style={styles.rowInputs}>
+                <View style={[styles.inputContainer, styles.inputHalf]}>
+                  <Ionicons name="location" size={20} color={Colors.primary} style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Cidade"
+                    placeholderTextColor={Colors.textLight}
+                    value={cidade}
+                    onChangeText={setCidade}
+                  />
+                </View>
+
+                <View style={[styles.inputContainer, styles.inputSmall]}>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="UF"
+                    placeholderTextColor={Colors.textLight}
+                    value={estado}
+                    onChangeText={setEstado}
+                    maxLength={2}
+                    autoCapitalize="characters"
+                  />
+                </View>
+              </View>
+
+              <View style={styles.inputContainer}>
                 <Ionicons name="lock-closed" size={20} color={Colors.primary} style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
-                  placeholder="Senha (mín. 6 caracteres)"
+                  placeholder="Senha (mín. 6 caracteres) *"
                   placeholderTextColor={Colors.textLight}
                   value={senha}
                   onChangeText={setSenha}
@@ -163,7 +222,7 @@ export default function Cadastro() {
                 <Ionicons name="lock-closed" size={20} color={Colors.primary} style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
-                  placeholder="Confirmar senha"
+                  placeholder="Confirmar senha *"
                   placeholderTextColor={Colors.textLight}
                   value={confirmarSenha}
                   onChangeText={setConfirmarSenha}
@@ -181,9 +240,19 @@ export default function Cadastro() {
                 </TouchableOpacity>
               </View>
 
-              <TouchableOpacity style={styles.botaoCadastrar} onPress={handleCadastrar}>
-                <Text style={styles.botaoTexto}>Criar minha conta</Text>
-                <Ionicons name="checkmark-circle" size={24} color={Colors.background} style={styles.arrowIcon} />
+              <TouchableOpacity 
+                style={[styles.botaoCadastrar, loading && styles.botaoDisabled]} 
+                onPress={handleCadastrar}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator size="small" color={Colors.background} />
+                ) : (
+                  <>
+                    <Text style={styles.botaoTexto}>Criar minha conta</Text>
+                    <Ionicons name="checkmark-circle" size={24} color={Colors.background} style={styles.arrowIcon} />
+                  </>
+                )}
               </TouchableOpacity>
 
               <View style={styles.termos}>
@@ -285,7 +354,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 14,
-    fontFamily: 'Inter_700Bold',
+    fontFamily: 'Inter_400Regular',
     color: Colors.textLight,
     textAlign: "center",
     paddingHorizontal: 32,
@@ -320,12 +389,22 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
   },
+  rowInputs: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  inputHalf: {
+    flex: 1,
+  },
+  inputSmall: {
+    width: 80,
+  },
   inputIcon: {
     marginRight: 12,
   },
   input: {
     flex: 1,
-    fontFamily: 'Inter_700Bold',
+    fontFamily: 'Inter_400Regular',
     fontSize: 16,
     color: Colors.white,
   },
@@ -346,6 +425,9 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 10,
   },
+  botaoDisabled: {
+    opacity: 0.7,
+  },
   botaoTexto: {
     color: Colors.background,
     fontSize: 18,
@@ -360,7 +442,7 @@ const styles = StyleSheet.create({
   },
   termosTexto: {
     fontSize: 12,
-    fontFamily: 'Inter_700Bold',
+    fontFamily: 'Inter_400Regular',
     color: Colors.textLight,
     textAlign: "center",
     lineHeight: 18,
@@ -375,7 +457,7 @@ const styles = StyleSheet.create({
   },
   footerText: {
     color: Colors.textLight,
-    fontFamily: 'Inter_700Bold',
+    fontFamily: 'Inter_400Regular',
     fontSize: 14,
   },
   footerLink: {

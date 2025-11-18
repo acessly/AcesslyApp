@@ -3,7 +3,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useState, useEffect } from "react";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { Colors } from "../../constants/Colors";
+import { Colors, Fonts } from "../../constants/Colors";
 // import { candidacyService, authService } from "../../services/api";
 
 export default function Candidaturas() {
@@ -20,9 +20,9 @@ export default function Candidaturas() {
     setLoading(true);
     try {
       const user = await authService.getCurrentUser();
-      if (user.userId) {
-        const response = await candidacyService.listarPorCandidato(user.userId, 0, 20);
-        setCandidaturas(response.content);
+      if (user.candidateId) {
+        const response = await candidacyService.listarPorCandidato(user.candidateId, 0, 20);
+        setCandidaturas(response.content || []);
       }
     } catch (error) {
       console.error("Erro ao carregar candidaturas:", error);
@@ -117,17 +117,29 @@ export default function Candidaturas() {
     });
   }
 
+    if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+          <Text style={styles.loadingText}>Carregando candidaturas...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
       
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Minhas Candidaturas</Text>
-        <Text style={styles.headerSubtitle}>{listaCandidaturas.length} candidatura(s)</Text>
+        <Text style={styles.headerSubtitle}>{candidaturas.length} candidatura(s)</Text>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollView}>
-        {listaCandidaturas.length === 0 ? (
+        {candidaturas.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="document-text-outline" size={64} color={Colors.textLight} />
             <Text style={styles.emptyTitle}>Nenhuma candidatura</Text>
@@ -142,30 +154,19 @@ export default function Candidaturas() {
             </TouchableOpacity>
           </View>
         ) : (
-          listaCandidaturas.map((candidatura) => (
+          candidaturas.map((candidatura) => (
             <TouchableOpacity 
               key={candidatura.id} 
               style={styles.candidaturaCard}
-              onPress={() => abrirVaga(candidatura.vacancy.id)}
+              onPress={() => abrirVaga(candidatura.vacancyId)}
             >
               <View style={styles.cardHeader}>
                 <View style={styles.empresaIcon}>
                   <Ionicons name="business" size={24} color={Colors.primary} />
                 </View>
                 <View style={styles.cardInfo}>
-                  <Text style={styles.vagaTitulo}>{candidatura.vacancy.title}</Text>
-                  <Text style={styles.vagaEmpresa}>{candidatura.vacancy.company?.name}</Text>
-                </View>
-              </View>
-
-              <View style={styles.cardDetails}>
-                <View style={styles.detailItem}>
-                  <Ionicons name="location-outline" size={16} color={Colors.textLight} />
-                  <Text style={styles.detailText}>{candidatura.vacancy.city}</Text>
-                </View>
-                <View style={styles.detailItem}>
-                  <Ionicons name="briefcase-outline" size={16} color={Colors.textLight} />
-                  <Text style={styles.detailText}>{getTipoLabel(candidatura.vacancy.vacancyType)}</Text>
+                  <Text style={styles.vagaTitulo}>{candidatura.vacancyTitle}</Text>
+                  <Text style={styles.vagaEmpresa}>{candidatura.companyName}</Text>
                 </View>
               </View>
 
@@ -181,7 +182,7 @@ export default function Candidaturas() {
                   </Text>
                 </View>
                 <Text style={styles.dataText}>
-                  Enviada em {new Date(candidatura.appliedAt).toLocaleDateString('pt-BR')}
+                  Enviada em {new Date(candidatura.applicationDate).toLocaleDateString('pt-BR')}
                 </Text>
               </View>
 
@@ -198,18 +199,30 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    fontFamily: Fonts.regular,
+    color: Colors.textLight,
+  },
   header: {
     padding: 24,
     paddingBottom: 16,
   },
   headerTitle: {
     fontSize: 28,
-    fontWeight: "bold",
+    fontFamily: Fonts.bold,
     color: Colors.white,
     marginBottom: 4,
   },
   headerSubtitle: {
     fontSize: 14,
+    fontFamily: Fonts.regular,
     color: Colors.textLight,
   },
   scrollView: {
@@ -222,13 +235,14 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 20,
-    fontWeight: "bold",
+    fontFamily: Fonts.bold,
     color: Colors.white,
     marginTop: 16,
     marginBottom: 8,
   },
   emptyText: {
     fontSize: 14,
+    fontFamily: Fonts.regular,
     color: Colors.textLight,
     textAlign: "center",
     paddingHorizontal: 40,
@@ -242,7 +256,7 @@ const styles = StyleSheet.create({
   },
   explorarText: {
     fontSize: 16,
-    fontWeight: "bold",
+    fontFamily: Fonts.bold,
     color: Colors.background,
   },
   candidaturaCard: {
@@ -272,26 +286,13 @@ const styles = StyleSheet.create({
   },
   vagaTitulo: {
     fontSize: 18,
-    fontWeight: "bold",
+    fontFamily: Fonts.bold,
     color: Colors.white,
     marginBottom: 4,
   },
   vagaEmpresa: {
     fontSize: 14,
-    color: Colors.textLight,
-  },
-  cardDetails: {
-    flexDirection: "row",
-    gap: 16,
-    marginBottom: 16,
-  },
-  detailItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  detailText: {
-    fontSize: 13,
+    fontFamily: Fonts.regular,
     color: Colors.textLight,
   },
   cardFooter: {
@@ -309,10 +310,11 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 12,
-    fontWeight: "600",
+    fontFamily: Fonts.semiBold,
   },
   dataText: {
     fontSize: 12,
+    fontFamily: Fonts.regular,
     color: Colors.textLight,
   },
 });

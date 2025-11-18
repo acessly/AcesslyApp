@@ -1,7 +1,6 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-
 const API_URL = 'http://localhost:8080';
 
 const api = axios.create({
@@ -11,7 +10,6 @@ const api = axios.create({
   },
   timeout: 10000,
 });
-
 
 api.interceptors.request.use(
   async (config) => {
@@ -30,7 +28,6 @@ api.interceptors.request.use(
   }
 );
 
-
 api.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -45,30 +42,77 @@ api.interceptors.response.use(
   }
 );
 
-
 export const authService = {
   login: async (email, password) => {
-    const response = await api.post('/auth/login', { email, password });
-    // Salvar token
-    if (response.data.token) {
-      await AsyncStorage.setItem('token', response.data.token);
-      await AsyncStorage.setItem('userId', response.data.userId.toString());
-      await AsyncStorage.setItem('userRole', response.data.role);
+    
+    const loginResponse = await api.post('/auth/login', { email, password });
+    
+    if (loginResponse.data.token) {
+      await AsyncStorage.setItem('token', loginResponse.data.token);
+      await AsyncStorage.setItem('userEmail', email);
+      await AsyncStorage.setItem('userName', loginResponse.data.name);
+      
+      
+      const usersResponse = await api.get(`/users?page=0&size=100`);
+      const user = usersResponse.data.content.find(u => u.email === email);
+      
+      if (user) {
+        await AsyncStorage.setItem('userId', user.id.toString());
+        await AsyncStorage.setItem('userRole', user.userRole);
+        
+        
+        if (user.userRole === 'CANDIDATE') {
+          try {
+            const candidatesResponse = await api.get(`/candidates?page=0&size=100`);
+            const candidate = candidatesResponse.data.content.find(c => c.userId === user.id);
+            if (candidate) {
+              await AsyncStorage.setItem('candidateId', candidate.id.toString());
+            }
+          } catch (error) {
+            console.log('Candidato ainda não cadastrou perfil completo');
+          }
+        }
+        
+        
+        if (user.userRole === 'COMPANY') {
+          try {
+            const companiesResponse = await api.get(`/companies?page=0&size=100`);
+            const company = companiesResponse.data.content.find(c => c.userId === user.id);
+            if (company) {
+              await AsyncStorage.setItem('companyId', company.id.toString());
+            }
+          } catch (error) {
+            console.log('Empresa ainda não cadastrou perfil completo');
+          }
+        }
+      }
     }
-    return response.data;
+    
+    return loginResponse.data;
   },
 
   logout: async () => {
-    await AsyncStorage.multiRemove(['token', 'userId', 'userRole']);
+    await AsyncStorage.multiRemove([
+      'token', 
+      'userId', 
+      'userRole', 
+      'userEmail', 
+      'userName',
+      'candidateId', 
+      'companyId'
+    ]);
   },
 
   getCurrentUser: async () => {
     const userId = await AsyncStorage.getItem('userId');
     const role = await AsyncStorage.getItem('userRole');
-    return { userId, role };
+    const email = await AsyncStorage.getItem('userEmail');
+    const name = await AsyncStorage.getItem('userName');
+    const candidateId = await AsyncStorage.getItem('candidateId');
+    const companyId = await AsyncStorage.getItem('companyId');
+    return { userId, role, email, name, candidateId, companyId };
   },
 };
-
 
 export const userService = {
   criar: async (dados) => {
@@ -96,7 +140,6 @@ export const userService = {
     return response.data;
   },
 };
-
 
 export const candidateService = {
   criar: async (dados) => {
@@ -128,7 +171,6 @@ export const candidateService = {
   },
 };
 
-
 export const companyService = {
   criar: async (dados) => {
     const response = await api.post('/companies', dados);
@@ -158,7 +200,6 @@ export const companyService = {
     return response.data;
   },
 };
-
 
 export const vacancyService = {
   criar: async (dados) => {
@@ -191,9 +232,7 @@ export const vacancyService = {
   },
 };
 
-
 export const candidacyService = {
- 
   criar: async (dados) => {
     const response = await api.post('/candidacies', dados);
     return response.data;
@@ -214,18 +253,15 @@ export const candidacyService = {
     return response.data;
   },
 
- 
   listarPorVaga: async (vacancyId, page = 0, size = 10) => {
     const response = await api.get(`/candidacies/vacancy/${vacancyId}?page=${page}&size=${size}`);
     return response.data;
   },
 
- 
   atualizarStatus: async (id, status) => {
-    const response = await api.patch(`/candidacies/${id}/status`, { status });
+    const response = await api.patch(`/candidacies/${id}/status?status=${status}`);
     return response.data;
   },
-
 
   deletar: async (id) => {
     const response = await api.delete(`/candidacies/${id}`);

@@ -20,24 +20,38 @@ export default function Perfil() {
     setLoading(true);
     try {
       const user = await authService.getCurrentUser();
-      if (user.userId) {
-        const response = await candidateService.buscarPorId(user.userId);
+      if (user.candidateId) {
+        const response = await candidateService.buscarPorId(user.candidateId);
         setPerfil(response);
       }
     } catch (error) {
       console.error("Erro ao carregar perfil:", error);
+      Alert.alert("Erro", "Não foi possível carregar o perfil.");
     } finally {
       setLoading(false);
     }
   }
 
   async function handleLogout() {
-    try {
-      await authService.logout();
-      router.replace("/");
-    } catch (error) {
-      console.error("Erro ao fazer logout:", error);
-    }
+    Alert.alert(
+      "Sair da conta",
+      "Tem certeza que deseja sair?",
+      [
+        { text: "Cancelar", style: "cancel" },
+        { 
+          text: "Sair", 
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await authService.logout();
+              router.replace("/");
+            } catch (error) {
+              console.error("Erro ao fazer logout:", error);
+            }
+          }
+        }
+      ]
+    );
   }
   */
 
@@ -110,7 +124,7 @@ export default function Perfil() {
               <Ionicons name="call-outline" size={20} color={Colors.textLight} />
               <View style={styles.infoContent}>
                 <Text style={styles.infoLabel}>Telefone</Text>
-                <Text style={styles.infoValue}>{dadosPerfil.phone}</Text>
+                <Text style={styles.infoValue}>{dadosPerfil.phone || "Não informado"}</Text>
               </View>
             </View>
 
@@ -120,7 +134,7 @@ export default function Perfil() {
               <Ionicons name="location-outline" size={20} color={Colors.textLight} />
               <View style={styles.infoContent}>
                 <Text style={styles.infoLabel}>Cidade</Text>
-                <Text style={styles.infoValue}>{dadosPerfil.city}</Text>
+                <Text style={styles.infoValue}>{dadosPerfil.city || "Não informado"}</Text>
               </View>
             </View>
 
@@ -130,7 +144,7 @@ export default function Perfil() {
               <Ionicons name="school-outline" size={20} color={Colors.textLight} />
               <View style={styles.infoContent}>
                 <Text style={styles.infoLabel}>Formação</Text>
-                <Text style={styles.infoValue}>{dadosPerfil.education}</Text>
+                <Text style={styles.infoValue}>{dadosPerfil.education || "Não informado"}</Text>
               </View>
             </View>
           </View>
@@ -138,21 +152,15 @@ export default function Perfil() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Habilidades</Text>
-          
-          <View style={styles.skillsContainer}>
-            {dadosPerfil.skills.map((skill, index) => (
-              <View key={index} style={styles.skillTag}>
-                <Text style={styles.skillText}>{skill}</Text>
-              </View>
-            ))}
-          </View>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Experiência</Text>
+          <Text style={styles.sectionTitle}>Acessibilidade Necessária</Text>
           
           <View style={styles.infoCard}>
-            <Text style={styles.experienceText}>{dadosPerfil.experience}</Text>
+            <Text style={styles.experienceText}>
+              {dadosPerfil.requiredAcessibility || "Não informado"}
+            </Text>
           </View>
         </View>
 
@@ -303,6 +311,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: Fonts.regular,
     color: Colors.primary,
+  },
+  emptyText: {
+    fontSize: 14,
+    fontFamily: Fonts.regular,
+    color: Colors.textLight,
   },
   experienceText: {
     fontSize: 14,

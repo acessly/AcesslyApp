@@ -1,24 +1,61 @@
-import { Text, TextInput, StyleSheet, View, TouchableOpacity, ScrollView, StatusBar, Alert } from "react-native";
+import { Text, TextInput, StyleSheet, View, TouchableOpacity, ScrollView, StatusBar, Alert, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors, Fonts } from "../../constants/Colors";
-// import { candidateService, authService } from "../../services/api";
+import { candidateService, userService, authService } from "../../services/api";
 
 export default function EditarPerfil() {
-  const [nome, setNome] = useState("Patrick Castro");
-  const [email, setEmail] = useState("patrickcastro@gmail.com");
-  const [telefone, setTelefone] = useState("(11) 99999-9999");
-  const [cidade, setCidade] = useState("São Paulo");
-  const [tipoDeficiencia, setTipoDeficiencia] = useState("Física");
-  const [habilidades, setHabilidades] = useState("React Native, JavaScript, Python, UX Design");
-  const [experiencia, setExperiencia] = useState("2 anos em desenvolvimento mobile");
-  const [formacao, setFormacao] = useState("Ciência da Computação - FIAP");
+  const [nome, setNome] = useState("");
+  const [email, setEmail] = useState("");
+  const [telefone, setTelefone] = useState("");
+  const [cidade, setCidade] = useState("");
+  const [estado, setEstado] = useState("");
+  const [tipoDeficiencia, setTipoDeficiencia] = useState("");
+  const [habilidades, setHabilidades] = useState("");
+  const [acessibilidadeNecessaria, setAcessibilidadeNecessaria] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadingData, setLoadingData] = useState(true);
+  const [userId, setUserId] = useState(null);
+  const [candidateId, setCandidateId] = useState(null);
 
-  // VERSÃO COM API (DESCOMENTAR DEPOIS):
-  /*
+  useEffect(() => {
+    carregarDados();
+  }, []);
+
+  async function carregarDados() {
+    setLoadingData(true);
+    try {
+      const user = await authService.getCurrentUser();
+      setUserId(user.userId);
+      setCandidateId(user.candidateId);
+
+      
+      if (user.userId) {
+        const userData = await userService.buscarPorId(user.userId);
+        setNome(userData.name || "");
+        setEmail(userData.email || "");
+        setTelefone(userData.phone || "");
+        setCidade(userData.city || "");
+        setEstado(userData.state || "");
+      }
+
+      
+      if (user.candidateId) {
+        const candidateData = await candidateService.buscarPorId(user.candidateId);
+        setTipoDeficiencia(candidateData.disabilityType || "");
+        setHabilidades(candidateData.skills || "");
+        setAcessibilidadeNecessaria(candidateData.requiredAcessibility || "");
+      }
+    } catch (error) {
+      console.error("Erro ao carregar dados:", error);
+      Alert.alert("Erro", "Não foi possível carregar os dados do perfil.");
+    } finally {
+      setLoadingData(false);
+    }
+  }
+
   async function handleSalvar() {
     if (!nome || !email || !telefone || !cidade) {
       Alert.alert("Atenção", "Por favor, preencha os campos obrigatórios.");
@@ -27,20 +64,26 @@ export default function EditarPerfil() {
 
     setLoading(true);
     try {
-      const user = await authService.getCurrentUser();
       
-      const dadosAtualizados = {
-        name: nome,
-        email: email,
-        phone: telefone,
-        city: cidade,
-        disabilityType: tipoDeficiencia,
-        skills: habilidades.split(",").map(s => s.trim()),
-        experience: experiencia,
-        education: formacao,
-      };
+      if (userId) {
+        await userService.atualizar(userId, {
+          name: nome,
+          email: email,
+          phone: telefone,
+          city: cidade,
+          state: estado,
+        });
+      }
 
-      await candidateService.atualizar(user.userId, dadosAtualizados);
+      
+      if (candidateId) {
+        await candidateService.atualizar(candidateId, {
+          userId: parseInt(userId),
+          disabilityType: tipoDeficiencia,
+          skills: habilidades,
+          requiredAcessibility: acessibilidadeNecessaria,
+        });
+      }
 
       Alert.alert(
         "Sucesso",
@@ -66,8 +109,14 @@ export default function EditarPerfil() {
           style: "destructive",
           onPress: async () => {
             try {
-              const user = await authService.getCurrentUser();
-              await candidateService.deletar(user.userId);
+              
+              if (candidateId) {
+                await candidateService.deletar(candidateId);
+              }
+              
+              if (userId) {
+                await userService.deletar(userId);
+              }
               await authService.logout();
               router.replace("/");
             } catch (error) {
@@ -79,45 +128,21 @@ export default function EditarPerfil() {
       ]
     );
   }
-  */
-
-  // VERSÃO FAKE (SEM API - USAR AGORA):
-  function handleSalvar() {
-    if (!nome || !email || !telefone || !cidade) {
-      Alert.alert("Atenção", "Por favor, preencha os campos obrigatórios.");
-      return;
-    }
-
-    Alert.alert(
-      "Sucesso",
-      "Perfil atualizado com sucesso!",
-      [{ text: "OK", onPress: () => router.back() }]
-    );
-  }
-
-  function handleDeletarConta() {
-    Alert.alert(
-      "Deletar conta",
-      "Tem certeza que deseja deletar sua conta? Esta ação não pode ser desfeita.",
-      [
-        { text: "Cancelar", style: "cancel" },
-        { 
-          text: "Deletar", 
-          style: "destructive",
-          onPress: () => {
-            Alert.alert(
-              "Conta deletada",
-              "Sua conta foi removida com sucesso.",
-              [{ text: "OK", onPress: () => router.replace("/") }]
-            );
-          }
-        }
-      ]
-    );
-  }
 
   function voltar() {
     router.back();
+  }
+
+  if (loadingData) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+          <Text style={styles.loadingText}>Carregando dados...</Text>
+        </View>
+      </SafeAreaView>
+    );
   }
 
   return (
@@ -195,10 +220,26 @@ export default function EditarPerfil() {
               />
             </View>
           </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Estado</Text>
+            <View style={styles.inputContainer}>
+              <Ionicons name="map-outline" size={20} color={Colors.textLight} />
+              <TextInput
+                style={styles.input}
+                placeholder="Ex: SP"
+                placeholderTextColor={Colors.textLight}
+                value={estado}
+                onChangeText={setEstado}
+                maxLength={2}
+                autoCapitalize="characters"
+              />
+            </View>
+          </View>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Informações Profissionais</Text>
+          <Text style={styles.sectionTitle}>Informações do Candidato</Text>
           
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>Tipo de Deficiência</Text>
@@ -206,7 +247,7 @@ export default function EditarPerfil() {
               <Ionicons name="accessibility-outline" size={20} color={Colors.textLight} />
               <TextInput
                 style={styles.input}
-                placeholder="Ex: Física, Visual, Auditiva"
+                placeholder="Ex: Física, visual, auditiva..."
                 placeholderTextColor={Colors.textLight}
                 value={tipoDeficiencia}
                 onChangeText={setTipoDeficiencia}
@@ -229,30 +270,16 @@ export default function EditarPerfil() {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Experiência</Text>
+            <Text style={styles.inputLabel}>Acessibilidade Necessária</Text>
             <View style={[styles.inputContainer, styles.textAreaContainer]}>
               <TextInput
                 style={[styles.input, styles.textArea]}
-                placeholder="Descreva sua experiência"
+                placeholder="Descreva os recursos de acessibilidade que você precisa"
                 placeholderTextColor={Colors.textLight}
-                value={experiencia}
-                onChangeText={setExperiencia}
+                value={acessibilidadeNecessaria}
+                onChangeText={setAcessibilidadeNecessaria}
                 multiline
                 numberOfLines={3}
-              />
-            </View>
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Formação</Text>
-            <View style={styles.inputContainer}>
-              <Ionicons name="school-outline" size={20} color={Colors.textLight} />
-              <TextInput
-                style={styles.input}
-                placeholder="Sua formação acadêmica"
-                placeholderTextColor={Colors.textLight}
-                value={formacao}
-                onChangeText={setFormacao}
               />
             </View>
           </View>
@@ -285,6 +312,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    fontFamily: Fonts.regular,
+    color: Colors.textLight,
   },
   header: {
     flexDirection: "row",
