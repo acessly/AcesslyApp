@@ -18,20 +18,9 @@ export default function Index() {
       return;
     }
 
-    
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      Alert.alert("Email inválido", "Por favor, insira um email válido.");
-      return;
-    }
-
     setLoading(true);
-
     try {
-      const response = await authService.login(email, senha);
-      
-      setLoading(false);
-      Alert.alert("Sucesso", "Login realizado com sucesso!");
+      await authService.login(email, senha);
       
       router.replace({
         pathname: "/(tabs)/home",
@@ -39,13 +28,12 @@ export default function Index() {
       });
       
     } catch (error) {
-      setLoading(false);
       console.error("Erro no login:", error);
       
       if (error.response?.status === 401 || error.response?.status === 403) {
         Alert.alert(
-          "Erro de Autenticação", 
-          "Email ou senha incorretos. Tente novamente."
+          "Erro", 
+          "Email ou senha incorretos."
         );
       } else if (error.response?.status === 404) {
         Alert.alert(
@@ -56,22 +44,14 @@ export default function Index() {
             { text: "Cadastrar", onPress: irParaCadastro }
           ]
         );
-      } else if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
-        Alert.alert(
-          "Timeout", 
-          "A API demorou muito para responder. Verifique se o backend está rodando."
-        );
-      } else if (error.message.includes('Network Error')) {
-        Alert.alert(
-          "Erro de Conexão", 
-          "Não foi possível conectar à API. Verifique:\n\n• Se o backend está rodando\n• Se está na mesma rede\n• Se a URL da API está correta"
-        );
       } else {
         Alert.alert(
           "Erro", 
-          "Não foi possível fazer login. Tente novamente mais tarde."
+          "Não foi possível fazer login. Verifique sua conexão."
         );
       }
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -105,7 +85,6 @@ export default function Index() {
           <ScrollView 
             contentContainerStyle={styles.scrollContent} 
             showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
           >
             
             <View style={styles.headerContainer}>
@@ -138,8 +117,6 @@ export default function Index() {
                   onChangeText={setEmail}
                   keyboardType="email-address"
                   autoCapitalize="none"
-                  autoCorrect={false}
-                  editable={!loading}
                 />
               </View>
 
@@ -152,13 +129,10 @@ export default function Index() {
                   value={senha}
                   onChangeText={setSenha}
                   secureTextEntry={!senhaVisivel}
-                  autoCapitalize="none"
-                  editable={!loading}
                 />
                 <TouchableOpacity 
                   onPress={() => setSenhaVisivel(!senhaVisivel)} 
                   style={styles.eyeButton}
-                  disabled={loading}
                 >
                   <Ionicons 
                     name={senhaVisivel ? "eye" : "eye-off"} 
@@ -168,11 +142,7 @@ export default function Index() {
                 </TouchableOpacity>
               </View>
 
-              <TouchableOpacity 
-                style={styles.forgotPassword} 
-                onPress={handleEsqueceuSenha}
-                disabled={loading}
-              >
+              <TouchableOpacity style={styles.forgotPassword} onPress={handleEsqueceuSenha}>
                 <Text style={styles.forgotText}>Esqueceu a senha?</Text>
               </TouchableOpacity>
 
@@ -196,9 +166,7 @@ export default function Index() {
             <View style={styles.footer}>
               <Text style={styles.footerText}>
                 Não tem uma conta?{" "}
-                <Text style={styles.footerLink} onPress={irParaCadastro}>
-                  Cadastre-se
-                </Text>
+                <Text style={styles.footerLink} onPress={irParaCadastro}>Cadastre-se</Text>
               </Text>
             </View>
 
@@ -362,7 +330,7 @@ const styles = StyleSheet.create({
     elevation: 10,
   },
   botaoDisabled: {
-    opacity: 0.6,
+    opacity: 0.7,
   },
   botaoTexto: {
     color: Colors.background,

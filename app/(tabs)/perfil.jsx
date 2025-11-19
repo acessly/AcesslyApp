@@ -1,17 +1,16 @@
-import { Text, StyleSheet, View, TouchableOpacity, ScrollView, StatusBar, Alert } from "react-native";
+import { Text, StyleSheet, View, TouchableOpacity, ScrollView, StatusBar, Alert, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors, Fonts } from "../../constants/Colors";
-// import { candidateService, authService } from "../../services/api";
+import { candidateService, userService, authService } from "../../services/api";
 
 export default function Perfil() {
   const [perfil, setPerfil] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [userData, setUserData] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // VERSÃO COM API (DESCOMENTAR DEPOIS):
-  /*
   useEffect(() => {
     carregarPerfil();
   }, []);
@@ -20,6 +19,12 @@ export default function Perfil() {
     setLoading(true);
     try {
       const user = await authService.getCurrentUser();
+      
+      if (user.userId) {
+        const userResponse = await userService.buscarPorId(user.userId);
+        setUserData(userResponse);
+      }
+      
       if (user.candidateId) {
         const response = await candidateService.buscarPorId(user.candidateId);
         setPerfil(response);
@@ -53,41 +58,37 @@ export default function Perfil() {
       ]
     );
   }
-  */
-
-  // VERSÃO FAKE (SEM API - USAR AGORA):
-  const perfilFake = {
-    id: 1,
-    name: "Patrick Castro",
-    email: "patrickcastro@gmail.com",
-    phone: "(11) 99999-9999",
-    city: "São Paulo",
-    disabilityType: "Física",
-    skills: ["React Native", "JavaScript", "Python", "UX Design"],
-    experience: "2 anos em desenvolvimento mobile",
-    education: "Análise e desenolvimento de sistemas  - FIAP",
-  };
-
-  const dadosPerfil = perfil || perfilFake;
-
-  function handleLogout() {
-    Alert.alert(
-      "Sair da conta",
-      "Tem certeza que deseja sair?",
-      [
-        { text: "Cancelar", style: "cancel" },
-        { 
-          text: "Sair", 
-          style: "destructive",
-          onPress: () => router.replace("/")
-        }
-      ]
-    );
-  }
 
   function handleEditarPerfil() {
     router.push("/perfil/editar");
   }
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+          <Text style={styles.loadingText}>Carregando perfil...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const dadosPerfil = {
+    name: userData?.name || "Usuário",
+    email: userData?.email || "",
+    phone: userData?.phone || "Não informado",
+    city: userData?.city || "Não informado",
+    state: userData?.state || "",
+    disabilityType: perfil?.disabilityType || "Não informado",
+    skills: perfil?.skills || "",
+    requiredAcessibility: perfil?.requiredAcessibility || "Não informado",
+  };
+
+  const skillsArray = dadosPerfil.skills 
+    ? dadosPerfil.skills.split(',').map(s => s.trim()).filter(s => s)
+    : [];
 
   return (
     <SafeAreaView style={styles.container}>
@@ -124,7 +125,7 @@ export default function Perfil() {
               <Ionicons name="call-outline" size={20} color={Colors.textLight} />
               <View style={styles.infoContent}>
                 <Text style={styles.infoLabel}>Telefone</Text>
-                <Text style={styles.infoValue}>{dadosPerfil.phone || "Não informado"}</Text>
+                <Text style={styles.infoValue}>{dadosPerfil.phone}</Text>
               </View>
             </View>
 
@@ -133,18 +134,10 @@ export default function Perfil() {
             <View style={styles.infoItem}>
               <Ionicons name="location-outline" size={20} color={Colors.textLight} />
               <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>Cidade</Text>
-                <Text style={styles.infoValue}>{dadosPerfil.city || "Não informado"}</Text>
-              </View>
-            </View>
-
-            <View style={styles.divider} />
-
-            <View style={styles.infoItem}>
-              <Ionicons name="school-outline" size={20} color={Colors.textLight} />
-              <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>Formação</Text>
-                <Text style={styles.infoValue}>{dadosPerfil.education || "Não informado"}</Text>
+                <Text style={styles.infoLabel}>Localização</Text>
+                <Text style={styles.infoValue}>
+                  {dadosPerfil.city}{dadosPerfil.state ? `, ${dadosPerfil.state}` : ""}
+                </Text>
               </View>
             </View>
           </View>
@@ -152,15 +145,27 @@ export default function Perfil() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Habilidades</Text>
+          
+          {skillsArray.length > 0 ? (
+            <View style={styles.skillsContainer}>
+              {skillsArray.map((skill, index) => (
+                <View key={index} style={styles.skillTag}>
+                  <Text style={styles.skillText}>{skill}</Text>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <View style={styles.infoCard}>
+              <Text style={styles.emptyText}>Nenhuma habilidade cadastrada</Text>
+            </View>
+          )}
         </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Acessibilidade Necessária</Text>
           
           <View style={styles.infoCard}>
-            <Text style={styles.experienceText}>
-              {dadosPerfil.requiredAcessibility || "Não informado"}
-            </Text>
+            <Text style={styles.experienceText}>{dadosPerfil.requiredAcessibility}</Text>
           </View>
         </View>
 
@@ -180,6 +185,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    fontFamily: Fonts.regular,
+    color: Colors.textLight,
   },
   header: {
     flexDirection: "row",

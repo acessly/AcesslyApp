@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors, Fonts } from "../constants/Colors";
-import { companyService, companySupportService } from "../services/api";
+import { companyService } from "../services/api";
 
 export default function Empresas() {
   const [empresas, setEmpresas] = useState([]);
@@ -18,26 +18,7 @@ export default function Empresas() {
     setLoading(true);
     try {
       const response = await companyService.listar(0, 20);
-      
-      
-      const empresasComRecursos = await Promise.all(
-        (response.content || []).map(async (empresa) => {
-          try {
-            const recursos = await companySupportService.listarPorEmpresa(empresa.id, 0, 10);
-            return {
-              ...empresa,
-              accessibilityFeatures: recursos.content?.map(r => r.supportType) || [],
-            };
-          } catch (error) {
-            return {
-              ...empresa,
-              accessibilityFeatures: [],
-            };
-          }
-        })
-      );
-
-      setEmpresas(empresasComRecursos);
+      setEmpresas(response.content || []);
     } catch (error) {
       console.error("Erro ao carregar empresas:", error);
     } finally {
@@ -59,15 +40,9 @@ export default function Empresas() {
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={voltar}>
-            <Ionicons name="arrow-back" size={24} color={Colors.white} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Empresas Parceiras</Text>
-          <View style={styles.placeholder} />
-        </View>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.primary} />
+          <Text style={styles.loadingText}>Carregando empresas...</Text>
         </View>
       </SafeAreaView>
     );
@@ -87,58 +62,68 @@ export default function Empresas() {
 
       <View style={styles.subHeader}>
         <Text style={styles.subHeaderText}>
-          {empresas.length} empresas comprometidas com a inclusão
+          {empresas.length} empresa(s) comprometida(s) com a inclusão
         </Text>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollView}>
-        {empresas.map((empresa) => (
-          <View key={empresa.id} style={styles.empresaCard}>
-            <View style={styles.cardHeader}>
-              <View style={styles.empresaIcon}>
-                <Ionicons name="business" size={28} color={Colors.primary} />
+        {empresas.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Ionicons name="business-outline" size={64} color={Colors.textLight} />
+            <Text style={styles.emptyTitle}>Nenhuma empresa cadastrada</Text>
+            <Text style={styles.emptyText}>
+              No momento não há empresas parceiras cadastradas. Volte mais tarde!
+            </Text>
+          </View>
+        ) : (
+          empresas.map((empresa) => (
+            <View key={empresa.id} style={styles.empresaCard}>
+              <View style={styles.cardHeader}>
+                <View style={styles.empresaIcon}>
+                  <Ionicons name="business" size={28} color={Colors.primary} />
+                </View>
+                <View style={styles.empresaInfo}>
+                  <Text style={styles.empresaNome}>{empresa.name}</Text>
+                  <Text style={styles.empresaSetor}>{empresa.sector}</Text>
+                </View>
               </View>
-              <View style={styles.empresaInfo}>
-                <Text style={styles.empresaNome}>{empresa.name}</Text>
-                <Text style={styles.empresaSetor}>{empresa.sector}</Text>
-              </View>
-            </View>
 
-            <View style={styles.locationContainer}>
-              <Ionicons name="location-outline" size={16} color={Colors.textLight} />
-              <Text style={styles.locationText}>{empresa.city}</Text>
-            </View>
+              {empresa.website && (
+                <View style={styles.locationContainer}>
+                  <Ionicons name="globe-outline" size={16} color={Colors.textLight} />
+                  <Text style={styles.locationText}>{empresa.website}</Text>
+                </View>
+              )}
 
-            <Text style={styles.descriptionText}>{empresa.description}</Text>
+              {empresa.description && (
+                <Text style={styles.descriptionText}>{empresa.description}</Text>
+              )}
 
-            <View style={styles.accessibilitySection}>
-              <Text style={styles.accessibilityTitle}>Acessibilidade oferecida:</Text>
-              <View style={styles.accessibilityContainer}>
-                {empresa.accessibilityFeatures.slice(0, 3).map((feature, index) => (
-                  <View key={index} style={styles.accessibilityTag}>
-                    <Ionicons name="checkmark-circle" size={12} color={Colors.success} />
-                    <Text style={styles.accessibilityText}>{feature}</Text>
-                  </View>
-                ))}
-                {empresa.accessibilityFeatures.length > 3 && (
+              <View style={styles.accessibilitySection}>
+                <Text style={styles.accessibilityTitle}>Nível de acessibilidade:</Text>
+                <View style={styles.accessibilityContainer}>
                   <View style={styles.accessibilityTag}>
+                    <Ionicons name="checkmark-circle" size={12} color={Colors.success} />
                     <Text style={styles.accessibilityText}>
-                      +{empresa.accessibilityFeatures.length - 3}
+                      {empresa.acessibilityType === 'LOW' && 'Básico'}
+                      {empresa.acessibilityType === 'MEDIUM' && 'Intermediário'}
+                      {empresa.acessibilityType === 'HIGH' && 'Avançado'}
+                      {!empresa.acessibilityType && 'Não informado'}
                     </Text>
                   </View>
-                )}
+                </View>
               </View>
-            </View>
 
-            <TouchableOpacity 
-              style={styles.verVagasButton}
-              onPress={() => verVagasEmpresa(empresa.name)}
-            >
-              <Text style={styles.verVagasText}>Ver vagas disponíveis</Text>
-              <Ionicons name="arrow-forward" size={18} color={Colors.primary} />
-            </TouchableOpacity>
-          </View>
-        ))}
+              <TouchableOpacity 
+                style={styles.verVagasButton}
+                onPress={() => verVagasEmpresa(empresa.name)}
+              >
+                <Text style={styles.verVagasText}>Ver vagas disponíveis</Text>
+                <Ionicons name="arrow-forward" size={18} color={Colors.primary} />
+              </TouchableOpacity>
+            </View>
+          ))
+        )}
 
         <View style={styles.bottomSpacing} />
       </ScrollView>
@@ -155,6 +140,12 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    fontFamily: Fonts.regular,
+    color: Colors.textLight,
   },
   header: {
     flexDirection: "row",
@@ -191,6 +182,24 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
     paddingHorizontal: 24,
+  },
+  emptyState: {
+    alignItems: "center",
+    paddingVertical: 60,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontFamily: Fonts.bold,
+    color: Colors.white,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyText: {
+    fontSize: 14,
+    fontFamily: Fonts.regular,
+    color: Colors.textLight,
+    textAlign: "center",
+    paddingHorizontal: 40,
   },
   empresaCard: {
     backgroundColor: Colors.backgroundCard,
