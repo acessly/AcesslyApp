@@ -1,7 +1,7 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_URL = 'http://localhost:8080';
+const API_URL = 'http://10.0.2.2:8080';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -249,7 +249,7 @@ export const candidacyService = {
   },
 
   listarPorCandidato: async (candidateId, page = 0, size = 10) => {
-    const response = await api.get(`/candidacies/candidate/${candidateId}?page=${page}&size=${size}`);
+    const response = await api.get(`/candidacies/candidates/${candidateId}?page=${page}&size=${size}`);
     return response.data;
   },
 

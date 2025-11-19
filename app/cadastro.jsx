@@ -5,6 +5,7 @@ import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../constants/Colors";
 import { userService, authService, candidateService } from "../services/api";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function Cadastro() {
   const [nome, setNome] = useState("");
@@ -44,7 +45,7 @@ export default function Cadastro() {
         userRole: "CANDIDATE",
         city: cidade || "São Paulo",
         state: estado || "SP",
-        phone: telefone || "(11) 00000-0000"
+        phone: telefone || "11999999999"
       };
 
       const userResponse = await userService.criar(dadosUsuario);
@@ -56,15 +57,14 @@ export default function Cadastro() {
       // 3. Criar perfil de candidato
       const dadosCandidato = {
         userId: userId,
-        disabilityType: "NOT_INFORMED",
-        skills: "",
-        requiredAcessibility: ""
+        disabilityType: "PHYSICAL",
+        skills: "Não informado",
+        requiredAcessibility: "Não informado"
       };
 
       const candidateResponse = await candidateService.criar(dadosCandidato);
       
       // Salvar candidateId no AsyncStorage
-      const AsyncStorage = require('@react-native-async-storage/async-storage').default;
       await AsyncStorage.setItem('candidateId', candidateResponse.id.toString());
       
       Alert.alert(
@@ -81,6 +81,11 @@ export default function Cadastro() {
       console.error("Erro ao cadastrar:", error);
       
       if (error.response?.status === 400) {
+        Alert.alert(
+          "Erro", 
+          "Dados inválidos. Verifique os campos e tente novamente."
+        );
+      } else if (error.response?.status === 409) {
         Alert.alert(
           "Erro", 
           "Este e-mail já está cadastrado. Tente fazer login."

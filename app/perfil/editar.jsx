@@ -9,6 +9,8 @@ import { candidateService, userService, authService } from "../../services/api";
 export default function EditarPerfil() {
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
+  const [senha, setSenha] = useState("");
+  const [senhaVisivel, setSenhaVisivel] = useState(false);
   const [telefone, setTelefone] = useState("");
   const [cidade, setCidade] = useState("");
   const [estado, setEstado] = useState("");
@@ -31,7 +33,6 @@ export default function EditarPerfil() {
       setUserId(user.userId);
       setCandidateId(user.candidateId);
 
-      
       if (user.userId) {
         const userData = await userService.buscarPorId(user.userId);
         setNome(userData.name || "");
@@ -41,7 +42,6 @@ export default function EditarPerfil() {
         setEstado(userData.state || "");
       }
 
-      
       if (user.candidateId) {
         const candidateData = await candidateService.buscarPorId(user.candidateId);
         setTipoDeficiencia(candidateData.disabilityType || "");
@@ -62,27 +62,38 @@ export default function EditarPerfil() {
       return;
     }
 
+    if (!senha) {
+      Alert.alert("Atenção", "Por favor, digite sua senha para confirmar as alterações.");
+      return;
+    }
+
     setLoading(true);
     try {
-      
+      // Atualizar usuário
       if (userId) {
+        console.log("Atualizando usuário ID:", userId);
         await userService.atualizar(userId, {
           name: nome,
           email: email,
+          password: senha,
           phone: telefone,
           city: cidade,
-          state: estado,
+          state: estado || "SP",
+          userRole: "CANDIDATE",
         });
+        console.log("Usuário atualizado OK");
       }
 
-      
+      // Atualizar candidato
       if (candidateId) {
+        console.log("Atualizando candidato ID:", candidateId);
         await candidateService.atualizar(candidateId, {
           userId: parseInt(userId),
-          disabilityType: tipoDeficiencia,
-          skills: habilidades,
-          requiredAcessibility: acessibilidadeNecessaria,
+          disabilityType: tipoDeficiencia || "PHYSICAL",
+          skills: habilidades || "Não informado",
+          requiredAcessibility: acessibilidadeNecessaria || "Não informado",
         });
+        console.log("Candidato atualizado OK");
       }
 
       Alert.alert(
@@ -91,8 +102,15 @@ export default function EditarPerfil() {
         [{ text: "OK", onPress: () => router.back() }]
       );
     } catch (error) {
-      console.error("Erro ao atualizar perfil:", error);
-      Alert.alert("Erro", "Não foi possível atualizar o perfil.");
+      console.error("Erro ao atualizar perfil:", error.message);
+      console.error("Status:", error.response?.status);
+      console.error("Data:", error.response?.data);
+      
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        Alert.alert("Erro", "Senha incorreta. Tente novamente.");
+      } else {
+        Alert.alert("Erro", "Não foi possível atualizar o perfil.");
+      }
     } finally {
       setLoading(false);
     }
@@ -109,11 +127,9 @@ export default function EditarPerfil() {
           style: "destructive",
           onPress: async () => {
             try {
-              
               if (candidateId) {
                 await candidateService.deletar(candidateId);
               }
-              
               if (userId) {
                 await userService.deletar(userId);
               }
@@ -193,6 +209,28 @@ export default function EditarPerfil() {
           </View>
 
           <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Senha *</Text>
+            <View style={styles.inputContainer}>
+              <Ionicons name="lock-closed-outline" size={20} color={Colors.textLight} />
+              <TextInput
+                style={styles.input}
+                placeholder="Digite sua senha para confirmar"
+                placeholderTextColor={Colors.textLight}
+                value={senha}
+                onChangeText={setSenha}
+                secureTextEntry={!senhaVisivel}
+              />
+              <TouchableOpacity onPress={() => setSenhaVisivel(!senhaVisivel)}>
+                <Ionicons 
+                  name={senhaVisivel ? "eye" : "eye-off"} 
+                  size={20} 
+                  color={Colors.textLight} 
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>Telefone *</Text>
             <View style={styles.inputContainer}>
               <Ionicons name="call-outline" size={20} color={Colors.textLight} />
@@ -247,7 +285,7 @@ export default function EditarPerfil() {
               <Ionicons name="accessibility-outline" size={20} color={Colors.textLight} />
               <TextInput
                 style={styles.input}
-                placeholder="Ex: Física, visual, auditiva..."
+                placeholder="Ex: PHYSICAL, VISUAL, HEARING..."
                 placeholderTextColor={Colors.textLight}
                 value={tipoDeficiencia}
                 onChangeText={setTipoDeficiencia}
