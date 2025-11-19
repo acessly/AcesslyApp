@@ -1,59 +1,49 @@
-import { Text, StyleSheet, View, TouchableOpacity, ScrollView, StatusBar } from "react-native";
+import { Text, StyleSheet, View, TouchableOpacity, ScrollView, StatusBar, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors, Fonts } from "../constants/Colors";
+import { companyService, companySupportService } from "../services/api";
 
 export default function Empresas() {
-  // VERSÃO FAKE (SEM API - USAR AGORA):
-  const empresasFake = [
-    {
-      id: 1,
-      name: "Tech Solutions",
-      sector: "Tecnologia",
-      city: "São Paulo",
-      openVacancies: 3,
-      description: "Empresa líder em soluções tecnológicas com foco em acessibilidade digital.",
-      accessibilityFeatures: ["Leitor de tela", "Horário flexível", "Home office"],
-    },
-    {
-      id: 2,
-      name: "Inclusiva Corp",
-      sector: "Recursos Humanos",
-      city: "Rio de Janeiro",
-      openVacancies: 2,
-      description: "Consultoria especializada em inclusão e diversidade no ambiente corporativo.",
-      accessibilityFeatures: ["Rampa", "Elevador", "Intérprete de Libras", "Banheiro adaptado"],
-    },
-    {
-      id: 3,
-      name: "Creative Agency",
-      sector: "Design e Marketing",
-      city: "Belo Horizonte",
-      openVacancies: 1,
-      description: "Agência criativa que valoriza a diversidade em suas equipes.",
-      accessibilityFeatures: ["Estacionamento PCD", "Banheiro adaptado", "Mobiliário ergonômico"],
-    },
-    {
-      id: 4,
-      name: "HelpDesk Plus",
-      sector: "Atendimento ao Cliente",
-      city: "Curitiba",
-      openVacancies: 4,
-      description: "Empresa de suporte técnico com ambiente 100% inclusivo.",
-      accessibilityFeatures: ["Software adaptado", "Horário flexível", "Trabalho remoto"],
-    },
-    {
-      id: 5,
-      name: "DataFlow Analytics",
-      sector: "Análise de Dados",
-      city: "Porto Alegre",
-      openVacancies: 2,
-      description: "Startup de análise de dados comprometida com a inclusão.",
-      accessibilityFeatures: ["Home office", "Equipamentos adaptados", "Mentoria especializada"],
-    },
-  ];
+  const [empresas, setEmpresas] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    carregarEmpresas();
+  }, []);
+
+  async function carregarEmpresas() {
+    setLoading(true);
+    try {
+      const response = await companyService.listar(0, 20);
+      
+      
+      const empresasComRecursos = await Promise.all(
+        (response.content || []).map(async (empresa) => {
+          try {
+            const recursos = await companySupportService.listarPorEmpresa(empresa.id, 0, 10);
+            return {
+              ...empresa,
+              accessibilityFeatures: recursos.content?.map(r => r.supportType) || [],
+            };
+          } catch (error) {
+            return {
+              ...empresa,
+              accessibilityFeatures: [],
+            };
+          }
+        })
+      );
+
+      setEmpresas(empresasComRecursos);
+    } catch (error) {
+      console.error("Erro ao carregar empresas:", error);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   function voltar() {
     router.back();
@@ -63,6 +53,24 @@ export default function Empresas() {
     router.push({
       pathname: "/(tabs)/vagas",
     });
+  }
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={voltar}>
+            <Ionicons name="arrow-back" size={24} color={Colors.white} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Empresas Parceiras</Text>
+          <View style={styles.placeholder} />
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+        </View>
+      </SafeAreaView>
+    );
   }
 
   return (
@@ -79,12 +87,12 @@ export default function Empresas() {
 
       <View style={styles.subHeader}>
         <Text style={styles.subHeaderText}>
-          {empresasFake.length} empresas comprometidas com a inclusão
+          {empresas.length} empresas comprometidas com a inclusão
         </Text>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollView}>
-        {empresasFake.map((empresa) => (
+        {empresas.map((empresa) => (
           <View key={empresa.id} style={styles.empresaCard}>
             <View style={styles.cardHeader}>
               <View style={styles.empresaIcon}>
@@ -93,10 +101,6 @@ export default function Empresas() {
               <View style={styles.empresaInfo}>
                 <Text style={styles.empresaNome}>{empresa.name}</Text>
                 <Text style={styles.empresaSetor}>{empresa.sector}</Text>
-              </View>
-              <View style={styles.vagasBadge}>
-                <Text style={styles.vagasNumero}>{empresa.openVacancies}</Text>
-                <Text style={styles.vagasLabel}>vagas</Text>
               </View>
             </View>
 
@@ -146,6 +150,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
   header: {
     flexDirection: "row",
@@ -218,23 +227,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: Fonts.regular,
     color: Colors.textLight,
-  },
-  vagasBadge: {
-    backgroundColor: Colors.primary + '20',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
-    alignItems: "center",
-  },
-  vagasNumero: {
-    fontSize: 18,
-    fontFamily: Fonts.bold,
-    color: Colors.primary,
-  },
-  vagasLabel: {
-    fontSize: 10,
-    fontFamily: Fonts.regular,
-    color: Colors.primary,
   },
   locationContainer: {
     flexDirection: "row",

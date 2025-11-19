@@ -23,7 +23,7 @@ export default function VagaDetalhes() {
       setVaga(response);
     } catch (error) {
       console.error("Erro ao carregar vaga:", error);
-      // Usar dados passados por parâmetro como fallback
+      
       setVaga({
         id: id,
         title: titulo || "Vaga",
@@ -112,7 +112,7 @@ export default function VagaDetalhes() {
     );
   }
 
-  // Dados da vaga (da API ou fallback)
+  
   const dadosVaga = vaga || {
     id: id,
     title: titulo || "Vaga",

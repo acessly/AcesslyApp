@@ -1,15 +1,16 @@
-import { Text, TextInput, StyleSheet, Image, View, Alert, TouchableOpacity, StatusBar, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
+import { Text, TextInput, StyleSheet, Image, View, Alert, TouchableOpacity, StatusBar, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useState } from "react";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../constants/Colors";
-// import { authService } from "../services/api";
+import { authService } from "../services/api";
 
 export default function Index() {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [senhaVisivel, setSenhaVisivel] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   async function handleContinuar() {
     if (!email || !senha) {
@@ -17,25 +18,34 @@ export default function Index() {
       return;
     }
 
-    // VERSÃO COM API (DESCOMENTAR DEPOIS):
-    /*
+    
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      Alert.alert("Email inválido", "Por favor, insira um email válido.");
+      return;
+    }
+
+    setLoading(true);
+
     try {
       const response = await authService.login(email, senha);
       
+      setLoading(false);
       Alert.alert("Sucesso", "Login realizado com sucesso!");
       
       router.replace({
-        pathname: "/(tabs)",
+        pathname: "/(tabs)/home",
         params: { email },
       });
       
     } catch (error) {
+      setLoading(false);
       console.error("Erro no login:", error);
       
-      if (error.response?.status === 401) {
+      if (error.response?.status === 401 || error.response?.status === 403) {
         Alert.alert(
-          "Erro", 
-          "Email ou senha incorretos."
+          "Erro de Autenticação", 
+          "Email ou senha incorretos. Tente novamente."
         );
       } else if (error.response?.status === 404) {
         Alert.alert(
@@ -46,20 +56,23 @@ export default function Index() {
             { text: "Cadastrar", onPress: irParaCadastro }
           ]
         );
+      } else if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+        Alert.alert(
+          "Timeout", 
+          "A API demorou muito para responder. Verifique se o backend está rodando."
+        );
+      } else if (error.message.includes('Network Error')) {
+        Alert.alert(
+          "Erro de Conexão", 
+          "Não foi possível conectar à API. Verifique:\n\n• Se o backend está rodando\n• Se está na mesma rede\n• Se a URL da API está correta"
+        );
       } else {
         Alert.alert(
           "Erro", 
-          "Não foi possível fazer login. Verifique sua conexão."
+          "Não foi possível fazer login. Tente novamente mais tarde."
         );
       }
     }
-    */
-
-    // VERSÃO FAKE (SEM API - USAR AGORA):
-    router.replace({
-      pathname: "/(tabs)/home",
-      params: { email },
-    });
   }
 
   function irParaCadastro() {
@@ -67,12 +80,12 @@ export default function Index() {
   }
 
   function handleEsqueceuSenha() {
-  Alert.alert(
-    "Recuperar senha",
-    "Digite seu e-mail no campo acima e entraremos em contato com instruções para redefinir sua senha.",
-    [{ text: "OK" }]
-  );
-}
+    Alert.alert(
+      "Recuperar senha",
+      "Digite seu e-mail no campo acima e entraremos em contato com instruções para redefinir sua senha.",
+      [{ text: "OK" }]
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -92,6 +105,7 @@ export default function Index() {
           <ScrollView 
             contentContainerStyle={styles.scrollContent} 
             showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
           >
             
             <View style={styles.headerContainer}>
@@ -124,6 +138,8 @@ export default function Index() {
                   onChangeText={setEmail}
                   keyboardType="email-address"
                   autoCapitalize="none"
+                  autoCorrect={false}
+                  editable={!loading}
                 />
               </View>
 
@@ -136,10 +152,13 @@ export default function Index() {
                   value={senha}
                   onChangeText={setSenha}
                   secureTextEntry={!senhaVisivel}
+                  autoCapitalize="none"
+                  editable={!loading}
                 />
                 <TouchableOpacity 
                   onPress={() => setSenhaVisivel(!senhaVisivel)} 
                   style={styles.eyeButton}
+                  disabled={loading}
                 >
                   <Ionicons 
                     name={senhaVisivel ? "eye" : "eye-off"} 
@@ -149,13 +168,27 @@ export default function Index() {
                 </TouchableOpacity>
               </View>
 
-              <TouchableOpacity style={styles.forgotPassword} onPress={handleEsqueceuSenha}>
+              <TouchableOpacity 
+                style={styles.forgotPassword} 
+                onPress={handleEsqueceuSenha}
+                disabled={loading}
+              >
                 <Text style={styles.forgotText}>Esqueceu a senha?</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.botaoEntrar} onPress={handleContinuar}>
-                <Text style={styles.botaoTexto}>Entrar</Text>
-                <Ionicons name="arrow-forward-circle" size={24} color={Colors.background} style={styles.arrowIcon} />
+              <TouchableOpacity 
+                style={[styles.botaoEntrar, loading && styles.botaoDisabled]} 
+                onPress={handleContinuar}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator size="small" color={Colors.background} />
+                ) : (
+                  <>
+                    <Text style={styles.botaoTexto}>Entrar</Text>
+                    <Ionicons name="arrow-forward-circle" size={24} color={Colors.background} style={styles.arrowIcon} />
+                  </>
+                )}
               </TouchableOpacity>
 
             </View>
@@ -163,7 +196,9 @@ export default function Index() {
             <View style={styles.footer}>
               <Text style={styles.footerText}>
                 Não tem uma conta?{" "}
-                <Text style={styles.footerLink} onPress={irParaCadastro}>Cadastre-se</Text>
+                <Text style={styles.footerLink} onPress={irParaCadastro}>
+                  Cadastre-se
+                </Text>
               </Text>
             </View>
 
@@ -257,7 +292,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 14,
-    fontFamily: 'Inter_700Bold',
+    fontFamily: 'Inter_400Regular',
     color: Colors.textLight,
     textAlign: "center",
     paddingHorizontal: 40,
@@ -297,7 +332,7 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    fontFamily: 'Inter_700Bold',
+    fontFamily: 'Inter_400Regular',
     fontSize: 16,
     color: Colors.white,
   },
@@ -310,9 +345,8 @@ const styles = StyleSheet.create({
   },
   forgotText: {
     color: Colors.primary,
-    fontFamily: 'Inter_700Bold',
+    fontFamily: 'Inter_600SemiBold',
     fontSize: 14,
-    fontWeight: "600",
   },
   botaoEntrar: {
     backgroundColor: Colors.primary,
@@ -327,10 +361,13 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 10,
   },
+  botaoDisabled: {
+    opacity: 0.6,
+  },
   botaoTexto: {
     color: Colors.background,
     fontSize: 18,
-    fontWeight: "bold",
+    fontFamily: 'Inter_700Bold',
   },
   arrowIcon: {
     marginLeft: 8,
@@ -342,11 +379,10 @@ const styles = StyleSheet.create({
   footerText: {
     color: Colors.textLight,
     fontSize: 14,
-    fontFamily: 'Inter_700Bold',
+    fontFamily: 'Inter_400Regular',
   },
   footerLink: {
     color: Colors.primary,
-    fontWeight: "bold",
     fontFamily: 'Inter_700Bold',
   },
 });

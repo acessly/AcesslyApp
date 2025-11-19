@@ -18,15 +18,15 @@ export default function Home() {
 
   async function carregarDados() {
     try {
-      // Carregar dados do usuário
+      
       const user = await authService.getCurrentUser();
       setUserName(user.name || email || "usuário");
 
-      // Carregar total de vagas
+      
       const vagasResponse = await vacancyService.listar(0, 1);
       setTotalVagas(vagasResponse.totalElements || 0);
 
-      // Carregar total de candidaturas do usuário
+      
       if (user.candidateId) {
         const candidaturasResponse = await candidacyService.listarPorCandidato(user.candidateId, 0, 1);
         setTotalCandidaturas(candidaturasResponse.totalElements || 0);
