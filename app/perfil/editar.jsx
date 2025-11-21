@@ -3,6 +3,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useState, useEffect } from "react";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { Picker } from '@react-native-picker/picker';
 import { Colors, Fonts } from "../../constants/Colors";
 import { candidateService, userService, authService } from "../../services/api";
 
@@ -14,8 +15,9 @@ export default function EditarPerfil() {
   const [telefone, setTelefone] = useState("");
   const [cidade, setCidade] = useState("");
   const [estado, setEstado] = useState("");
-  const [tipoDeficiencia, setTipoDeficiencia] = useState("");
+  const [tipoDeficiencia, setTipoDeficiencia] = useState("PHYSICAL");
   const [habilidades, setHabilidades] = useState("");
+  const [experiencia, setExperiencia] = useState("");
   const [acessibilidadeNecessaria, setAcessibilidadeNecessaria] = useState("");
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
@@ -44,8 +46,9 @@ export default function EditarPerfil() {
 
       if (user.candidateId) {
         const candidateData = await candidateService.buscarPorId(user.candidateId);
-        setTipoDeficiencia(candidateData.disabilityType || "");
+        setTipoDeficiencia(candidateData.disabilityType || "PHYSICAL");
         setHabilidades(candidateData.skills || "");
+        setExperiencia(candidateData.experience || "");
         setAcessibilidadeNecessaria(candidateData.requiredAcessibility || "");
       }
     } catch (error) {
@@ -69,9 +72,7 @@ export default function EditarPerfil() {
 
     setLoading(true);
     try {
-      // Atualizar usuário
       if (userId) {
-        console.log("Atualizando usuário ID:", userId);
         await userService.atualizar(userId, {
           name: nome,
           email: email,
@@ -81,19 +82,15 @@ export default function EditarPerfil() {
           state: estado || "SP",
           userRole: "CANDIDATE",
         });
-        console.log("Usuário atualizado OK");
       }
 
-      // Atualizar candidato
       if (candidateId) {
-        console.log("Atualizando candidato ID:", candidateId);
         await candidateService.atualizar(candidateId, {
-          userId: parseInt(userId),
           disabilityType: tipoDeficiencia || "PHYSICAL",
           skills: habilidades || "Não informado",
-          requiredAcessibility: acessibilidadeNecessaria || "Não informado",
+          experience: experiencia || "Não informado",
+          requiredAccessibility: acessibilidadeNecessaria || "Não informado",
         });
-        console.log("Candidato atualizado OK");
       }
 
       Alert.alert(
@@ -102,14 +99,14 @@ export default function EditarPerfil() {
         [{ text: "OK", onPress: () => router.back() }]
       );
     } catch (error) {
-      console.error("Erro ao atualizar perfil:", error.message);
-      console.error("Status:", error.response?.status);
-      console.error("Data:", error.response?.data);
+      console.error("Erro ao atualizar perfil:", error);
       
       if (error.response?.status === 401 || error.response?.status === 403) {
         Alert.alert("Erro", "Senha incorreta. Tente novamente.");
+      } else if (error.response?.status === 400) {
+        Alert.alert("Erro", "Dados inválidos. Verifique os campos e tente novamente.");
       } else {
-        Alert.alert("Erro", "Não foi possível atualizar o perfil.");
+        Alert.alert("Erro", "Não foi possível atualizar o perfil. Tente novamente.");
       }
     } finally {
       setLoading(false);
@@ -281,15 +278,19 @@ export default function EditarPerfil() {
           
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>Tipo de Deficiência</Text>
-            <View style={styles.inputContainer}>
+            <View style={styles.pickerContainer}>
               <Ionicons name="accessibility-outline" size={20} color={Colors.textLight} />
-              <TextInput
-                style={styles.input}
-                placeholder="Ex: PHYSICAL, VISUAL, HEARING..."
-                placeholderTextColor={Colors.textLight}
-                value={tipoDeficiencia}
-                onChangeText={setTipoDeficiencia}
-              />
+              <Picker
+                selectedValue={tipoDeficiencia}
+                onValueChange={(itemValue) => setTipoDeficiencia(itemValue)}
+                style={styles.picker}
+                dropdownIconColor={Colors.textLight}
+              >
+                <Picker.Item label="Física" value="PHYSICAL" />
+                <Picker.Item label="Visual" value="VISUAL" />
+                <Picker.Item label="Auditiva" value="AUDITORY" />
+                <Picker.Item label="Cognitiva" value="COGNITIVE" />
+              </Picker>
             </View>
           </View>
 
@@ -303,6 +304,21 @@ export default function EditarPerfil() {
                 placeholderTextColor={Colors.textLight}
                 value={habilidades}
                 onChangeText={setHabilidades}
+              />
+            </View>
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Experiência Profissional</Text>
+            <View style={[styles.inputContainer, styles.textAreaContainer]}>
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                placeholder="Descreva sua experiência profissional"
+                placeholderTextColor={Colors.textLight}
+                value={experiencia}
+                onChangeText={setExperiencia}
+                multiline
+                numberOfLines={3}
               />
             </View>
           </View>
@@ -417,6 +433,21 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
     gap: 12,
+  },
+  pickerContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.backgroundCard,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    height: 56,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  picker: {
+    flex: 1,
+    color: Colors.white,
+    marginLeft: 8,
   },
   textAreaContainer: {
     height: 100,

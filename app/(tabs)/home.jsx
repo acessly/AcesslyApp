@@ -1,32 +1,35 @@
 import { Text, StyleSheet, View, TouchableOpacity, ScrollView, StatusBar } from "react-native";
+import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useState, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { useLocalSearchParams, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors, Fonts } from "../../constants/Colors";
 import { vacancyService, candidacyService, authService } from "../../services/api";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function Home() {
   const { email } = useLocalSearchParams();
   const [totalVagas, setTotalVagas] = useState(0);
   const [totalCandidaturas, setTotalCandidaturas] = useState(0);
   const [userName, setUserName] = useState("");
+  const [notificacoesNovas, setNotificacoesNovas] = useState(0);
 
-  useEffect(() => {
+  useFocusEffect(
+  useCallback(() => {
     carregarDados();
-  }, []);
+    verificarNotificacoes();
+  }, [])
+);
 
   async function carregarDados() {
     try {
-      
       const user = await authService.getCurrentUser();
       setUserName(user.name || email || "usuário");
 
-      
       const vagasResponse = await vacancyService.listar(0, 1);
       setTotalVagas(vagasResponse.totalElements || 0);
 
-      
       if (user.candidateId) {
         const candidaturasResponse = await candidacyService.listarPorCandidato(user.candidateId, 0, 1);
         setTotalCandidaturas(candidaturasResponse.totalElements || 0);
@@ -35,6 +38,35 @@ export default function Home() {
       console.error("Erro ao carregar dados:", error);
     }
   }
+
+  async function verificarNotificacoes() {
+  try {
+    const user = await authService.getCurrentUser();
+    if (user.candidateId) {
+      const lastCheck = await AsyncStorage.getItem('lastNotificationCheck');
+      const candidaturasResponse = await candidacyService.listarPorCandidato(user.candidateId, 0, 20);
+      
+      
+      if (!candidaturasResponse || !candidaturasResponse.content) {
+        setNotificacoesNovas(0);
+        return;
+      }
+
+      if (lastCheck) {
+        const lastCheckDate = new Date(lastCheck);
+        const novas = candidaturasResponse.content.filter(c => 
+          new Date(c.applicationDate) > lastCheckDate || c.status !== 'UNDER_ANALYSIS'
+        );
+        setNotificacoesNovas(novas.length);
+      } else {
+        setNotificacoesNovas(candidaturasResponse.content.length || 0);
+      }
+    }
+  } catch (error) {
+    console.error("Erro ao verificar notificações:", error);
+    setNotificacoesNovas(0);
+  }
+}
 
   function irParaVagas() {
     router.push("/(tabs)/vagas");
@@ -48,6 +80,10 @@ export default function Home() {
     router.push("/empresas");
   }
 
+  function irParaNotificacoes() {
+    router.push("/notificacoes");
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
@@ -58,9 +94,13 @@ export default function Home() {
             <Text style={styles.greeting}>Olá, seja bem-vindo!</Text>
             <Text style={styles.email}>{userName}</Text>
           </View>
-          <TouchableOpacity style={styles.notificationButton}>
+          <TouchableOpacity style={styles.notificationButton} onPress={irParaNotificacoes}>
             <Ionicons name="notifications-outline" size={24} color={Colors.white} />
-            <View style={styles.badge} />
+            {notificacoesNovas > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{notificacoesNovas}</Text>
+              </View>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -164,12 +204,20 @@ const styles = StyleSheet.create({
   },
   badge: {
     position: "absolute",
-    top: 8,
-    right: 8,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    top: 6,
+    right: 6,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
     backgroundColor: Colors.error,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 4,
+  },
+  badgeText: {
+    fontSize: 10,
+    fontFamily: Fonts.bold,
+    color: Colors.white,
   },
   statsContainer: {
     flexDirection: "row",

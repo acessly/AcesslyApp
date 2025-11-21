@@ -5,6 +5,7 @@ import { useLocalSearchParams, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors, Fonts } from "../../constants/Colors";
 import { vacancyService, candidacyService, authService } from "../../services/api";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function VagaDetalhes() {
   const { id, titulo, empresa } = useLocalSearchParams();
@@ -34,58 +35,73 @@ export default function VagaDetalhes() {
     }
   }
 
-  async function handleCandidatar() {
-    const user = await authService.getCurrentUser();
-    
-    if (!user.candidateId) {
-      Alert.alert(
-        "Perfil incompleto",
-        "Você precisa completar seu perfil de candidato antes de se candidatar a vagas.",
-        [
-          { text: "Cancelar", style: "cancel" },
-          { text: "Ir para Perfil", onPress: () => router.push("/(tabs)/perfil") }
-        ]
-      );
-      return;
-    }
-
+ async function handleCandidatar() {
+  const user = await authService.getCurrentUser();
+  
+  console.log("========== CANDIDATURA DEBUG ==========");
+  console.log("User:", user);
+  console.log("CandidateId:", user.candidateId);
+  console.log("VacancyId:", id);
+  
+  if (!user.candidateId) {
     Alert.alert(
-      "Confirmar candidatura",
-      `Deseja se candidatar para a vaga de ${vaga?.title || titulo}?`,
+      "Perfil incompleto",
+      "Você precisa completar seu perfil de candidato antes de se candidatar a vagas.",
       [
         { text: "Cancelar", style: "cancel" },
-        { 
-          text: "Candidatar", 
-          onPress: async () => {
-            setCandidatando(true);
-            try {
-              await candidacyService.criar({
-                candidateId: parseInt(user.candidateId),
-                vacancyId: parseInt(id),
-                applicationDate: new Date().toISOString().split('T')[0]
-              });
-
-              Alert.alert(
-                "Sucesso",
-                "Candidatura enviada com sucesso!",
-                [{ text: "OK", onPress: () => router.back() }]
-              );
-            } catch (error) {
-              console.error("Erro ao candidatar:", error);
-              if (error.response?.status === 400) {
-                Alert.alert("Atenção", "Você já se candidatou a esta vaga.");
-              } else {
-                Alert.alert("Erro", "Não foi possível enviar a candidatura.");
-              }
-            } finally {
-              setCandidatando(false);
-            }
-          }
-        }
+        { text: "Ir para Perfil", onPress: () => router.push("/(tabs)/perfil") }
       ]
     );
+    return;
   }
 
+  Alert.alert(
+    "Confirmar candidatura",
+    `Deseja se candidatar para a vaga de ${vaga?.title || titulo}?`,
+    [
+      { text: "Cancelar", style: "cancel" },
+      { 
+        text: "Candidatar", 
+        onPress: async () => {
+          setCandidatando(true);
+          try {
+            console.log("Dados da candidatura:", {
+              candidateId: parseInt(user.candidateId),
+              vacancyId: parseInt(id),
+              applicationDate: new Date().toISOString().split('T')[0]
+            });
+            
+            const resultado = await candidacyService.criar({
+              candidateId: parseInt(user.candidateId),
+              vacancyId: parseInt(id),
+              applicationDate: new Date().toISOString().split('T')[0]
+            });
+
+            console.log("Candidatura criada:", resultado);
+
+            await AsyncStorage.removeItem('lastNotificationCheck');
+
+            Alert.alert(
+              "Sucesso",
+              "Candidatura enviada com sucesso!",
+              [{ text: "OK", onPress: () => router.back() }]
+            );
+          } catch (error) {
+            console.error("Erro ao candidatar:", error);
+            console.error("Response:", error.response?.data);
+            if (error.response?.status === 400) {
+              Alert.alert("Atenção", "Você já se candidatou a esta vaga.");
+            } else {
+              Alert.alert("Erro", "Não foi possível enviar a candidatura.");
+            }
+          } finally {
+            setCandidatando(false);
+          }
+        }
+      }
+    ]
+  );
+}
   function voltar() {
     router.back();
   }
@@ -112,7 +128,6 @@ export default function VagaDetalhes() {
     );
   }
 
-  
   const dadosVaga = vaga || {
     id: id,
     title: titulo || "Vaga",

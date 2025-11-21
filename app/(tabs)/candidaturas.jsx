@@ -1,7 +1,7 @@
-import { Text, StyleSheet, View, TouchableOpacity, ScrollView, StatusBar, ActivityIndicator } from "react-native";
+import { Text, StyleSheet, View, TouchableOpacity, ScrollView, StatusBar, ActivityIndicator, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useState, useEffect } from "react";
-import { router } from "expo-router";
+import { useState, useCallback } from "react";
+import { router, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors, Fonts } from "../../constants/Colors";
 import { candidacyService, authService } from "../../services/api";
@@ -9,61 +9,62 @@ import { candidacyService, authService } from "../../services/api";
 export default function Candidaturas() {
   const [candidaturas, setCandidaturas] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    carregarCandidaturas();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      carregarCandidaturas();
+    }, [])
+  );
 
   async function carregarCandidaturas() {
     setLoading(true);
     try {
       const user = await authService.getCurrentUser();
+      
       if (user.candidateId) {
-        const response = await candidacyService.listarPorCandidato(user.candidateId, 0, 20);
+        const response = await candidacyService.listarPorCandidato(user.candidateId, 0, 50);
         setCandidaturas(response.content || []);
+      } else {
+        setCandidaturas([]);
       }
     } catch (error) {
       console.error("Erro ao carregar candidaturas:", error);
+      setCandidaturas([]);
     } finally {
       setLoading(false);
     }
   }
 
-  function getStatusLabel(status) {
-    const labels = {
-      UNDER_ANALYSIS: "Em análise",
-      APPROVED: "Aprovado",
-      REJECTED: "Rejeitado",
-    };
-    return labels[status] || status;
+  async function onRefresh() {
+    setRefreshing(true);
+    await carregarCandidaturas();
+    setRefreshing(false);
   }
 
-  function getStatusColor(status) {
-    const colors = {
-      UNDER_ANALYSIS: Colors.accent,
-      APPROVED: Colors.success,
-      REJECTED: Colors.error,
+  function getStatusInfo(status) {
+    const infos = {
+      UNDER_ANALYSIS: {
+        label: "Em análise",
+        icon: "time-outline",
+        color: Colors.accent,
+      },
+      APPROVED: {
+        label: "Aprovado",
+        icon: "checkmark-circle-outline",
+        color: Colors.success,
+      },
+      REJECTED: {
+        label: "Rejeitado",
+        icon: "close-circle-outline",
+        color: Colors.error,
+      },
     };
-    return colors[status] || Colors.textLight;
-  }
-
-  function getStatusIcon(status) {
-    const icons = {
-      UNDER_ANALYSIS: "time-outline",
-      APPROVED: "checkmark-circle-outline",
-      REJECTED: "close-circle-outline",
+    return infos[status] || {
+      label: status,
+      icon: "help-outline",
+      color: Colors.textLight,
     };
-    return icons[status] || "help-outline";
-  }
-
-  function getTipoLabel(tipo) {
-    const tipos = {
-      REMOTE: "Remoto",
-      HYBRID: "Híbrido",
-      PRESENTIAL: "Presencial",
-      IN_PERSON: "Presencial",
-    };
-    return tipos[tipo] || tipo;
   }
 
   function abrirVaga(vagaId) {
@@ -85,19 +86,61 @@ export default function Candidaturas() {
     );
   }
 
+  const estatisticas = {
+    total: candidaturas.length,
+    emAnalise: candidaturas.filter(c => c.status === 'UNDER_ANALYSIS').length,
+    aprovadas: candidaturas.filter(c => c.status === 'APPROVED').length,
+    rejeitadas: candidaturas.filter(c => c.status === 'REJECTED').length,
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
       
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Minhas Candidaturas</Text>
-        <Text style={styles.headerSubtitle}>{candidaturas.length} candidatura(s)</Text>
+        <View>
+          <Text style={styles.headerTitle}>Minhas Candidaturas</Text>
+          <Text style={styles.headerSubtitle}>{estatisticas.total} candidatura(s)</Text>
+        </View>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollView}>
+      <ScrollView 
+        showsVerticalScrollIndicator={false} 
+        style={styles.scrollView}
+        refreshControl={
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={onRefresh} 
+            tintColor={Colors.primary}
+            colors={[Colors.primary]}
+          />
+        }
+      >
+        {estatisticas.total > 0 && (
+          <View style={styles.statsContainer}>
+            <View style={styles.statBox}>
+              <Ionicons name="time-outline" size={20} color={Colors.accent} />
+              <Text style={styles.statNumber}>{estatisticas.emAnalise}</Text>
+              <Text style={styles.statLabel}>Em análise</Text>
+            </View>
+
+            <View style={styles.statBox}>
+              <Ionicons name="checkmark-circle" size={20} color={Colors.success} />
+              <Text style={styles.statNumber}>{estatisticas.aprovadas}</Text>
+              <Text style={styles.statLabel}>Aprovadas</Text>
+            </View>
+
+            <View style={styles.statBox}>
+              <Ionicons name="close-circle" size={20} color={Colors.error} />
+              <Text style={styles.statNumber}>{estatisticas.rejeitadas}</Text>
+              <Text style={styles.statLabel}>Rejeitadas</Text>
+            </View>
+          </View>
+        )}
+
         {candidaturas.length === 0 ? (
           <View style={styles.emptyState}>
-            <Ionicons name="document-text-outline" size={64} color={Colors.textLight} />
+            <Ionicons name="briefcase-outline" size={64} color={Colors.textLight} />
             <Text style={styles.emptyTitle}>Nenhuma candidatura</Text>
             <Text style={styles.emptyText}>
               Você ainda não se candidatou a nenhuma vaga. Explore as oportunidades disponíveis!
@@ -110,40 +153,50 @@ export default function Candidaturas() {
             </TouchableOpacity>
           </View>
         ) : (
-          candidaturas.map((candidatura) => (
-            <TouchableOpacity 
-              key={candidatura.id} 
-              style={styles.candidaturaCard}
-              onPress={() => abrirVaga(candidatura.vacancyId)}
-            >
-              <View style={styles.cardHeader}>
-                <View style={styles.empresaIcon}>
-                  <Ionicons name="business" size={24} color={Colors.primary} />
-                </View>
-                <View style={styles.cardInfo}>
-                  <Text style={styles.vagaTitulo}>{candidatura.vacancyTitle}</Text>
-                  <Text style={styles.vagaEmpresa}>{candidatura.companyName}</Text>
-                </View>
-              </View>
+          <View style={styles.listContainer}>
+            {candidaturas.map((candidatura) => {
+              const statusInfo = getStatusInfo(candidatura.status);
+              const data = new Date(candidatura.applicationDate);
 
-              <View style={styles.cardFooter}>
-                <View style={[styles.statusBadge, { backgroundColor: getStatusColor(candidatura.status) + '20' }]}>
-                  <Ionicons 
-                    name={getStatusIcon(candidatura.status)} 
-                    size={16} 
-                    color={getStatusColor(candidatura.status)} 
-                  />
-                  <Text style={[styles.statusText, { color: getStatusColor(candidatura.status) }]}>
-                    {getStatusLabel(candidatura.status)}
-                  </Text>
-                </View>
-                <Text style={styles.dataText}>
-                  Enviada em {new Date(candidatura.applicationDate).toLocaleDateString('pt-BR')}
-                </Text>
-              </View>
+              return (
+                <TouchableOpacity 
+                  key={candidatura.id} 
+                  style={styles.candidaturaCard}
+                  onPress={() => abrirVaga(candidatura.vacancyId)}
+                >
+                  <View style={styles.cardHeader}>
+                    <View style={styles.empresaIcon}>
+                      <Ionicons name="business" size={24} color={Colors.primary} />
+                    </View>
+                    <View style={styles.cardInfo}>
+                      <Text style={styles.vagaTitulo} numberOfLines={1}>
+                        {candidatura.vacancyTitle}
+                      </Text>
+                      <Text style={styles.vagaEmpresa} numberOfLines={1}>
+                        {candidatura.companyName}
+                      </Text>
+                    </View>
+                  </View>
 
-            </TouchableOpacity>
-          ))
+                  <View style={styles.cardFooter}>
+                    <View style={[styles.statusBadge, { backgroundColor: statusInfo.color + '20' }]}>
+                      <Ionicons 
+                        name={statusInfo.icon} 
+                        size={16} 
+                        color={statusInfo.color} 
+                      />
+                      <Text style={[styles.statusText, { color: statusInfo.color }]}>
+                        {statusInfo.label}
+                      </Text>
+                    </View>
+                    <Text style={styles.dataText}>
+                      {data.toLocaleDateString('pt-BR')}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -167,6 +220,9 @@ const styles = StyleSheet.create({
     color: Colors.textLight,
   },
   header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     padding: 24,
     paddingBottom: 16,
   },
@@ -183,11 +239,43 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+  },
+  statsContainer: {
+    flexDirection: "row",
     paddingHorizontal: 24,
+    gap: 12,
+    marginBottom: 24,
+  },
+  statBox: {
+    flex: 1,
+    backgroundColor: Colors.backgroundCard,
+    borderRadius: 12,
+    padding: 12,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  statNumber: {
+    fontSize: 20,
+    fontFamily: Fonts.bold,
+    color: Colors.white,
+    marginTop: 4,
+  },
+  statLabel: {
+    fontSize: 11,
+    fontFamily: Fonts.regular,
+    color: Colors.textLight,
+    marginTop: 2,
+    textAlign: "center",
+  },
+  listContainer: {
+    paddingHorizontal: 24,
+    paddingBottom: 24,
   },
   emptyState: {
     alignItems: "center",
     paddingVertical: 60,
+    paddingHorizontal: 40,
   },
   emptyTitle: {
     fontSize: 20,
@@ -201,7 +289,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.regular,
     color: Colors.textLight,
     textAlign: "center",
-    paddingHorizontal: 40,
+    lineHeight: 20,
     marginBottom: 24,
   },
   explorarButton: {
