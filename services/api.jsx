@@ -1,22 +1,27 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_URL = 'http://10.0.2.2:8080';
+const API_URL = 'https://acessly-api.onrender.com';
 
 const api = axios.create({
   baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 10000,
+  timeout: 30000,
 });
 
 api.interceptors.request.use(
   async (config) => {
     try {
-      const token = await AsyncStorage.getItem('token');
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
+      const publicRoutes = ['/auth/login', '/users'];
+      const isPublicRoute = publicRoutes.some(route => config.url.includes(route) && config.method === 'post');
+      
+      if (!isPublicRoute) {
+        const token = await AsyncStorage.getItem('token');
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
       }
     } catch (error) {
       console.error('Erro ao buscar token:', error);
@@ -44,7 +49,6 @@ api.interceptors.response.use(
 
 export const authService = {
   login: async (email, password) => {
-    
     const loginResponse = await api.post('/auth/login', { email, password });
     
     if (loginResponse.data.token) {
@@ -52,14 +56,12 @@ export const authService = {
       await AsyncStorage.setItem('userEmail', email);
       await AsyncStorage.setItem('userName', loginResponse.data.name);
       
-      
       const usersResponse = await api.get(`/users?page=0&size=100`);
       const user = usersResponse.data.content.find(u => u.email === email);
       
       if (user) {
         await AsyncStorage.setItem('userId', user.id.toString());
         await AsyncStorage.setItem('userRole', user.userRole);
-        
         
         if (user.userRole === 'CANDIDATE') {
           try {
@@ -72,7 +74,6 @@ export const authService = {
             console.log('Candidato ainda não cadastrou perfil completo');
           }
         }
-        
         
         if (user.userRole === 'COMPANY') {
           try {
@@ -250,7 +251,11 @@ export const candidacyService = {
 
   listarPorCandidato: async (candidateId, page = 0, size = 10) => {
     const response = await api.get(`/candidacies/candidates/${candidateId}?page=${page}&size=${size}`);
-    return response.data;
+    // A API retorna array direto, não objeto paginado
+    return {
+      content: Array.isArray(response.data) ? response.data : [],
+      totalElements: Array.isArray(response.data) ? response.data.length : 0,
+    };
   },
 
   listarPorVaga: async (vacancyId, page = 0, size = 10) => {

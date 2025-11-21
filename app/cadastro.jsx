@@ -1,8 +1,9 @@
 import { Text, TextInput, StyleSheet, View, Alert, TouchableOpacity, StatusBar, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { Picker } from '@react-native-picker/picker';
 import { Colors } from "../constants/Colors";
 import { userService, authService, candidateService } from "../services/api";
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -15,116 +16,156 @@ export default function Cadastro() {
   const [telefone, setTelefone] = useState("");
   const [cidade, setCidade] = useState("");
   const [estado, setEstado] = useState("");
+  const [tipoDeficiencia, setTipoDeficiencia] = useState("PHYSICAL");
+  const [habilidades, setHabilidades] = useState("");
+  const [experiencia, setExperiencia] = useState("");
+  const [acessibilidadeNecessaria, setAcessibilidadeNecessaria] = useState("");
   const [senhaVisivel, setSenhaVisivel] = useState(false);
   const [confirmarSenhaVisivel, setConfirmarSenhaVisivel] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // LIMPA TUDO quando a tela carrega
+  useEffect(() => {
+    limparTudo();
+  }, []);
+
+  async function limparTudo() {
+    try {
+      console.log('🧹 Limpando AsyncStorage ao entrar na tela de cadastro...');
+      await AsyncStorage.clear();
+      console.log('✅ AsyncStorage limpo!');
+    } catch (error) {
+      console.error('Erro ao limpar AsyncStorage:', error);
+    }
+  }
+
   async function handleCadastrar() {
+    // Validações
     if (!nome || !email || !senha || !confirmarSenha) {
-      Alert.alert("Atenção", "Por favor, preencha todos os campos obrigatórios.");
-      return;
+        Alert.alert("Atenção", "Por favor, preencha todos os campos obrigatórios.");
+        return;
     }
 
     if (senha !== confirmarSenha) {
-      Alert.alert("Erro", "As senhas não coincidem.");
-      return;
+        Alert.alert("Erro", "As senhas não coincidem.");
+        return;
     }
 
     if (senha.length < 6) {
-      Alert.alert("Erro", "A senha deve ter pelo menos 6 caracteres.");
-      return;
+        Alert.alert("Erro", "A senha deve ter pelo menos 6 caracteres.");
+        return;
     }
 
     setLoading(true);
+    
     try {
-      // 1. Criar usuário
-      const dadosUsuario = {
-        name: nome,
-        email: email,
-        password: senha,
-        userRole: "CANDIDATE",
-        city: cidade || "São Paulo",
-        state: estado || "SP",
-        phone: telefone || "11999999999"
-      };
+        console.log('=== GARANTINDO LIMPEZA TOTAL ===');
+        await AsyncStorage.clear();
+        await new Promise(resolve => setTimeout(resolve, 300));
+        console.log('✅ Tudo limpo antes de criar usuário');
 
-      const userResponse = await userService.criar(dadosUsuario);
-      const userId = userResponse.id;
+        // 1. Criar usuário SEM estar logado
+        const dadosUsuario = {
+            name: nome.trim(),
+            email: email.trim().toLowerCase(),
+            password: senha,
+            userRole: "CANDIDATE",
+            city: (cidade && cidade.trim()) || "São Paulo",
+            state: (estado && estado.trim()) || "SP",
+            phone: (telefone && telefone.trim()) || "11999999999"
+        };
 
-      // 2. Fazer login para obter token
-      await authService.login(email, senha);
+        console.log('=== CRIANDO USUÁRIO ===');
+        const userResponse = await userService.criar(dadosUsuario);
+        console.log('✅ Usuário criado:', userResponse.id);
+        
+        const userId = userResponse.id;
 
-      // 3. Criar perfil de candidato
-      const dadosCandidato = {
-        userId: userId,
-        disabilityType: "PHYSICAL",
-        skills: "Não informado",
-        requiredAcessibility: "Não informado"
-      };
+        // 2. Fazer login
+        console.log('=== FAZENDO LOGIN ===');
+        await authService.login(email.trim().toLowerCase(), senha);
+        
+        // 3. Aguardar token ser salvo
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        const token = await AsyncStorage.getItem('token');
+        if (!token) {
+            throw new Error('Token não foi salvo. Faça login manualmente.');
+        }
+        
+        console.log('✅ Login efetuado');
 
-      const candidateResponse = await candidateService.criar(dadosCandidato);
-      
-      // Salvar candidateId no AsyncStorage
-      await AsyncStorage.setItem('candidateId', candidateResponse.id.toString());
-      
-      Alert.alert(
-        "Sucesso", 
-        "Cadastro realizado com sucesso! Complete seu perfil para aumentar suas chances.",
-        [
-          {
-            text: "OK",
-            onPress: () => router.replace("/(tabs)/home")
-          }
-        ]
-      );
+        // 4. Criar perfil de candidato
+        const dadosCandidato = {
+            userId: userId,
+            disabilityType: tipoDeficiencia,
+            skills: (habilidades && habilidades.trim()) || "Não informado",
+            experience: (experiencia && experiencia.trim()) || "Não informado",
+            requiredAcessibility: (acessibilidadeNecessaria && acessibilidadeNecessaria.trim()) || "Não informado"
+        };
+
+        console.log('=== CRIANDO PERFIL CANDIDATO ===');
+        const candidateResponse = await candidateService.criar(dadosCandidato);
+        console.log('✅ Perfil candidato criado:', candidateResponse.id);
+        
+        await AsyncStorage.setItem('candidateId', candidateResponse.id.toString());
+
+        Alert.alert(
+            "Sucesso",
+            "Cadastro realizado com sucesso!",
+            [
+                {
+                    text: "OK",
+                    onPress: () => router.replace("/(tabs)/home")
+                }
+            ]
+        );
+
     } catch (error) {
-      console.error("Erro ao cadastrar:", error);
-      
-      if (error.response?.status === 400) {
-        Alert.alert(
-          "Erro", 
-          "Dados inválidos. Verifique os campos e tente novamente."
-        );
-      } else if (error.response?.status === 409) {
-        Alert.alert(
-          "Erro", 
-          "Este e-mail já está cadastrado. Tente fazer login."
-        );
-      } else {
-        Alert.alert(
-          "Erro", 
-          "Não foi possível criar a conta. Tente novamente."
-        );
-      }
+        console.error('=== ERRO ===');
+        console.error('Mensagem:', error.message);
+        console.error('Status:', error.response?.status);
+        console.error('Data:', error.response?.data);
+        
+        let mensagemErro = "Não foi possível criar a conta.";
+        
+        if (error.response?.status === 401) {
+            mensagemErro = "Problema de autenticação no backend. Use o Insomnia para criar o usuário e depois faça login no app.";
+        } else if (error.response?.status === 409) {
+            mensagemErro = "Este e-mail já está cadastrado. Tente fazer login.";
+        } else if (error.response?.status === 400) {
+            mensagemErro = error.response?.data?.message || "Dados inválidos. Verifique todos os campos.";
+        }
+        
+        Alert.alert("Erro", mensagemErro, [{ text: "OK" }]);
+        
     } finally {
-      setLoading(false);
+        setLoading(false);
     }
-  }
+}
 
   function voltarParaLogin() {
     router.replace("/");
   }
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
-      
-      <View style={styles.backgroundGradient}>
-        <View style={styles.circle1} />
-        <View style={styles.circle2} />
-        <View style={styles.circle3} />
-      </View>
-
-      <SafeAreaView style={styles.safeArea}>
-        <KeyboardAvoidingView 
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={styles.keyboardView}
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="light-content" />
+      <KeyboardAvoidingView
+        style={styles.keyboardView}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
         >
-          <ScrollView 
-            contentContainerStyle={styles.scrollContent} 
-            showsVerticalScrollIndicator={false}
-          >
-            
+          <View style={styles.container}>
+            <View style={styles.backgroundGradient}>
+              <View style={styles.circle1} />
+              <View style={styles.circle2} />
+              <View style={styles.circle3} />
+            </View>
+
             <TouchableOpacity style={styles.backButton} onPress={voltarParaLogin}>
               <Ionicons name="arrow-back" size={24} color={Colors.white} />
             </TouchableOpacity>
@@ -137,25 +178,35 @@ export default function Cadastro() {
             </View>
 
             <View style={styles.formCard}>
-              
-              <Text style={styles.formTitle}>Seus dados</Text>
+              <Text style={styles.formTitle}>Dados Pessoais</Text>
 
               <View style={styles.inputContainer}>
-                <Ionicons name="person" size={20} color={Colors.primary} style={styles.inputIcon} />
+                <Ionicons
+                  name="person-outline"
+                  size={20}
+                  color={Colors.textLight}
+                  style={styles.inputIcon}
+                />
                 <TextInput
                   style={styles.input}
-                  placeholder="Nome completo *"
+                  placeholder="Nome completo"
                   placeholderTextColor={Colors.textLight}
                   value={nome}
                   onChangeText={setNome}
+                  autoCapitalize="words"
                 />
               </View>
 
               <View style={styles.inputContainer}>
-                <Ionicons name="mail" size={20} color={Colors.primary} style={styles.inputIcon} />
+                <Ionicons
+                  name="mail-outline"
+                  size={20}
+                  color={Colors.textLight}
+                  style={styles.inputIcon}
+                />
                 <TextInput
                   style={styles.input}
-                  placeholder="Seu e-mail *"
+                  placeholder="E-mail"
                   placeholderTextColor={Colors.textLight}
                   value={email}
                   onChangeText={setEmail}
@@ -165,10 +216,69 @@ export default function Cadastro() {
               </View>
 
               <View style={styles.inputContainer}>
-                <Ionicons name="call" size={20} color={Colors.primary} style={styles.inputIcon} />
+                <Ionicons
+                  name="lock-closed-outline"
+                  size={20}
+                  color={Colors.textLight}
+                  style={styles.inputIcon}
+                />
                 <TextInput
                   style={styles.input}
-                  placeholder="Telefone"
+                  placeholder="Senha"
+                  placeholderTextColor={Colors.textLight}
+                  value={senha}
+                  onChangeText={setSenha}
+                  secureTextEntry={!senhaVisivel}
+                />
+                <TouchableOpacity
+                  onPress={() => setSenhaVisivel(!senhaVisivel)}
+                  style={styles.eyeButton}
+                >
+                  <Ionicons
+                    name={senhaVisivel ? "eye-outline" : "eye-off-outline"}
+                    size={20}
+                    color={Colors.textLight}
+                  />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Ionicons
+                  name="lock-closed-outline"
+                  size={20}
+                  color={Colors.textLight}
+                  style={styles.inputIcon}
+                />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Confirmar senha"
+                  placeholderTextColor={Colors.textLight}
+                  value={confirmarSenha}
+                  onChangeText={setConfirmarSenha}
+                  secureTextEntry={!confirmarSenhaVisivel}
+                />
+                <TouchableOpacity
+                  onPress={() => setConfirmarSenhaVisivel(!confirmarSenhaVisivel)}
+                  style={styles.eyeButton}
+                >
+                  <Ionicons
+                    name={confirmarSenhaVisivel ? "eye-outline" : "eye-off-outline"}
+                    size={20}
+                    color={Colors.textLight}
+                  />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Ionicons
+                  name="call-outline"
+                  size={20}
+                  color={Colors.textLight}
+                  style={styles.inputIcon}
+                />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Telefone (opcional)"
                   placeholderTextColor={Colors.textLight}
                   value={telefone}
                   onChangeText={setTelefone}
@@ -178,10 +288,15 @@ export default function Cadastro() {
 
               <View style={styles.rowInputs}>
                 <View style={[styles.inputContainer, styles.inputHalf]}>
-                  <Ionicons name="location" size={20} color={Colors.primary} style={styles.inputIcon} />
+                  <Ionicons
+                    name="location-outline"
+                    size={20}
+                    color={Colors.textLight}
+                    style={styles.inputIcon}
+                  />
                   <TextInput
                     style={styles.input}
-                    placeholder="Cidade"
+                    placeholder="Cidade (opcional)"
                     placeholderTextColor={Colors.textLight}
                     value={cidade}
                     onChangeText={setCidade}
@@ -200,86 +315,104 @@ export default function Cadastro() {
                   />
                 </View>
               </View>
+            </View>
 
-              <View style={styles.inputContainer}>
-                <Ionicons name="lock-closed" size={20} color={Colors.primary} style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Senha (mín. 6 caracteres) *"
-                  placeholderTextColor={Colors.textLight}
-                  value={senha}
-                  onChangeText={setSenha}
-                  secureTextEntry={!senhaVisivel}
+            <View style={styles.formCard}>
+              <Text style={styles.formTitle}>Perfil Profissional</Text>
+
+              <View style={styles.pickerContainer}>
+                <Ionicons
+                  name="accessibility-outline"
+                  size={20}
+                  color={Colors.textLight}
+                  style={styles.inputIcon}
                 />
-                <TouchableOpacity 
-                  onPress={() => setSenhaVisivel(!senhaVisivel)} 
-                  style={styles.eyeButton}
+                <Picker
+                  selectedValue={tipoDeficiencia}
+                  style={styles.picker}
+                  onValueChange={(itemValue) => setTipoDeficiencia(itemValue)}
+                  dropdownIconColor={Colors.white}
                 >
-                  <Ionicons 
-                    name={senhaVisivel ? "eye" : "eye-off"} 
-                    size={22} 
-                    color={Colors.textLight} 
-                  />
-                </TouchableOpacity>
+                  <Picker.Item label="Deficiência Física" value="PHYSICAL" />
+                  <Picker.Item label="Deficiência Visual" value="VISUAL" />
+                  <Picker.Item label="Deficiência Auditiva" value="AUDITORY" />
+                  <Picker.Item label="Deficiência Cognitiva" value="COGNITIVE" />
+                </Picker>
               </View>
 
-              <View style={styles.inputContainer}>
-                <Ionicons name="lock-closed" size={20} color={Colors.primary} style={styles.inputIcon} />
+              <View style={[styles.inputContainer, styles.textAreaContainer]}>
                 <TextInput
-                  style={styles.input}
-                  placeholder="Confirmar senha *"
+                  style={[styles.input, styles.textArea]}
+                  placeholder="Habilidades (opcional)"
                   placeholderTextColor={Colors.textLight}
-                  value={confirmarSenha}
-                  onChangeText={setConfirmarSenha}
-                  secureTextEntry={!confirmarSenhaVisivel}
+                  value={habilidades}
+                  onChangeText={setHabilidades}
+                  multiline
                 />
-                <TouchableOpacity 
-                  onPress={() => setConfirmarSenhaVisivel(!confirmarSenhaVisivel)} 
-                  style={styles.eyeButton}
-                >
-                  <Ionicons 
-                    name={confirmarSenhaVisivel ? "eye" : "eye-off"} 
-                    size={22} 
-                    color={Colors.textLight} 
-                  />
-                </TouchableOpacity>
               </View>
 
-              <TouchableOpacity 
-                style={[styles.botaoCadastrar, loading && styles.botaoDisabled]} 
+              <View style={[styles.inputContainer, styles.textAreaContainer]}>
+                <TextInput
+                  style={[styles.input, styles.textArea]}
+                  placeholder="Experiência Profissional (opcional)"
+                  placeholderTextColor={Colors.textLight}
+                  value={experiencia}
+                  onChangeText={setExperiencia}
+                  multiline
+                />
+              </View>
+
+              <View style={[styles.inputContainer, styles.textAreaContainer]}>
+                <TextInput
+                  style={[styles.input, styles.textArea]}
+                  placeholder="Acessibilidade Necessária (opcional)"
+                  placeholderTextColor={Colors.textLight}
+                  value={acessibilidadeNecessaria}
+                  onChangeText={setAcessibilidadeNecessaria}
+                  multiline
+                />
+              </View>
+            </View>
+
+            {loading ? (
+              <View style={styles.botaoCadastrar}>
+                <ActivityIndicator size="small" color={Colors.background} />
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={styles.botaoCadastrar}
                 onPress={handleCadastrar}
-                disabled={loading}
+                activeOpacity={0.8}
               >
-                {loading ? (
-                  <ActivityIndicator size="small" color={Colors.background} />
-                ) : (
-                  <>
-                    <Text style={styles.botaoTexto}>Criar minha conta</Text>
-                    <Ionicons name="checkmark-circle" size={24} color={Colors.background} style={styles.arrowIcon} />
-                  </>
-                )}
+                <Text style={styles.botaoTexto}>Criar minha conta</Text>
+                <Ionicons
+                  name="arrow-forward"
+                  size={20}
+                  color={Colors.background}
+                  style={styles.arrowIcon}
+                />
               </TouchableOpacity>
+            )}
 
-              <View style={styles.termos}>
-                <Text style={styles.termosTexto}>
-                  Ao criar uma conta, você concorda com nossos{" "}
-                  <Text style={styles.termosLink}>Termos de Uso</Text>
-                </Text>
-              </View>
-
+            <View style={styles.termos}>
+              <Text style={styles.termosTexto}>
+                Ao criar uma conta, você concorda com nossos{" "}
+                <Text style={styles.termosLink}>Termos de Uso</Text>
+              </Text>
             </View>
 
             <View style={styles.footer}>
               <Text style={styles.footerText}>
                 Já tem uma conta?{" "}
-                <Text style={styles.footerLink} onPress={voltarParaLogin}>Faça login</Text>
+                <Text style={styles.footerLink} onPress={voltarParaLogin}>
+                  Faça login
+                </Text>
               </Text>
             </View>
-
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
-    </View>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
@@ -334,6 +467,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: 24,
     paddingTop: 16,
+    paddingBottom: 30,
   },
   backButton: {
     width: 48,
@@ -382,6 +516,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_700Bold',
     color: Colors.white,
     marginBottom: 20,
+    marginTop: 10,
   },
   inputContainer: {
     flexDirection: "row",
@@ -393,6 +528,30 @@ const styles = StyleSheet.create({
     height: 56,
     borderWidth: 1,
     borderColor: Colors.border,
+  },
+  pickerContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.inputBg,
+    borderRadius: 14,
+    marginBottom: 16,
+    paddingHorizontal: 16,
+    height: 56,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  picker: {
+    flex: 1,
+    color: Colors.white,
+  },
+  textAreaContainer: {
+    height: 100,
+    alignItems: "flex-start",
+    paddingVertical: 12,
+  },
+  textArea: {
+    height: 76,
+    textAlignVertical: "top",
   },
   rowInputs: {
     flexDirection: "row",
@@ -430,9 +589,6 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 10,
   },
-  botaoDisabled: {
-    opacity: 0.7,
-  },
   botaoTexto: {
     color: Colors.background,
     fontSize: 18,
@@ -458,7 +614,6 @@ const styles = StyleSheet.create({
   },
   footer: {
     alignItems: "center",
-    paddingBottom: 30,
   },
   footerText: {
     color: Colors.textLight,
