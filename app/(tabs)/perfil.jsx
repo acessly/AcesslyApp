@@ -1,7 +1,7 @@
 import { Text, StyleSheet, View, TouchableOpacity, ScrollView, StatusBar, Alert, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useState, useEffect } from "react";
-import { router } from "expo-router";
+import { useState, useCallback } from "react";
+import { router, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors, Fonts } from "../../constants/Colors";
 import { candidateService, userService, authService } from "../../services/api";
@@ -11,22 +11,29 @@ export default function Perfil() {
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    carregarPerfil();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      carregarPerfil();
+    }, [])
+  );
 
   async function carregarPerfil() {
     setLoading(true);
     try {
-      const user = await authService.getCurrentUser();
+      const user = await authService.refreshUser();
+      
+      console.log('=== CARREGANDO PERFIL ===');
+      console.log('User:', user);
       
       if (user.userId) {
         const userResponse = await userService.buscarPorId(user.userId);
+        console.log('UserData:', userResponse);
         setUserData(userResponse);
       }
       
       if (user.candidateId) {
         const response = await candidateService.buscarPorId(user.candidateId);
+        console.log('Perfil candidato:', response);
         setPerfil(response);
       }
     } catch (error) {
@@ -83,10 +90,11 @@ export default function Perfil() {
     state: userData?.state || "",
     disabilityType: perfil?.disabilityType || "Não informado",
     skills: perfil?.skills || "",
+    experience: perfil?.experience || "Não informado",
     requiredAcessibility: perfil?.requiredAcessibility || "Não informado",
   };
 
-  const skillsArray = dadosPerfil.skills 
+  const skillsArray = dadosPerfil.skills && dadosPerfil.skills !== "Não informado"
     ? dadosPerfil.skills.split(',').map(s => s.trim()).filter(s => s)
     : [];
 
@@ -97,9 +105,14 @@ export default function Perfil() {
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Meu Perfil</Text>
-          <TouchableOpacity style={styles.editButton} onPress={handleEditarPerfil}>
-            <Ionicons name="create-outline" size={24} color={Colors.primary} />
-          </TouchableOpacity>
+          <View style={styles.headerButtons}>
+            <TouchableOpacity style={styles.editButton} onPress={carregarPerfil}>
+              <Ionicons name="refresh-outline" size={24} color={Colors.primary} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.editButton} onPress={handleEditarPerfil}>
+              <Ionicons name="create-outline" size={24} color={Colors.primary} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View style={styles.profileCard}>
@@ -162,6 +175,14 @@ export default function Perfil() {
         </View>
 
         <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Experiência</Text>
+          
+          <View style={styles.infoCard}>
+            <Text style={styles.experienceText}>{dadosPerfil.experience}</Text>
+          </View>
+        </View>
+
+        <View style={styles.section}>
           <Text style={styles.sectionTitle}>Acessibilidade Necessária</Text>
           
           <View style={styles.infoCard}>
@@ -208,6 +229,10 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontFamily: Fonts.bold,
     color: Colors.white,
+  },
+  headerButtons: {
+    flexDirection: "row",
+    gap: 8,
   },
   editButton: {
     width: 48,

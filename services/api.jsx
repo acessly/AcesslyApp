@@ -11,6 +11,9 @@ const api = axios.create({
   timeout: 30000,
 });
 
+
+let cachedUser = null;
+
 api.interceptors.request.use(
   async (config) => {
     try {
@@ -18,6 +21,7 @@ api.interceptors.request.use(
       const isPublicRoute = publicRoutes.some(route => config.url.includes(route) && config.method === 'post');
       
       if (!isPublicRoute) {
+        
         const token = await AsyncStorage.getItem('token');
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
@@ -49,69 +53,112 @@ api.interceptors.response.use(
 
 export const authService = {
   login: async (email, password) => {
+    
+    cachedUser = null;
+    
     const loginResponse = await api.post('/auth/login', { email, password });
     
     if (loginResponse.data.token) {
+      // SÓ SALVA O TOKEN
       await AsyncStorage.setItem('token', loginResponse.data.token);
       await AsyncStorage.setItem('userEmail', email);
-      await AsyncStorage.setItem('userName', loginResponse.data.name);
-      
-      const usersResponse = await api.get(`/users?page=0&size=100`);
-      const user = usersResponse.data.content.find(u => u.email === email);
-      
-      if (user) {
-        await AsyncStorage.setItem('userId', user.id.toString());
-        await AsyncStorage.setItem('userRole', user.userRole);
-        
-        if (user.userRole === 'CANDIDATE') {
-          try {
-            const candidatesResponse = await api.get(`/candidates?page=0&size=100`);
-            const candidate = candidatesResponse.data.content.find(c => c.userId === user.id);
-            if (candidate) {
-              await AsyncStorage.setItem('candidateId', candidate.id.toString());
-            }
-          } catch (error) {
-            console.log('Candidato ainda não cadastrou perfil completo');
-          }
-        }
-        
-        if (user.userRole === 'COMPANY') {
-          try {
-            const companiesResponse = await api.get(`/companies?page=0&size=100`);
-            const company = companiesResponse.data.content.find(c => c.userId === user.id);
-            if (company) {
-              await AsyncStorage.setItem('companyId', company.id.toString());
-            }
-          } catch (error) {
-            console.log('Empresa ainda não cadastrou perfil completo');
-          }
-        }
-      }
     }
     
     return loginResponse.data;
   },
 
   logout: async () => {
-    await AsyncStorage.multiRemove([
-      'token', 
-      'userId', 
-      'userRole', 
-      'userEmail', 
-      'userName',
-      'candidateId', 
-      'companyId'
-    ]);
+    cachedUser = null;
+    await AsyncStorage.removeItem('token');
+    await AsyncStorage.removeItem('userEmail');
   },
 
+  
   getCurrentUser: async () => {
-    const userId = await AsyncStorage.getItem('userId');
-    const role = await AsyncStorage.getItem('userRole');
-    const email = await AsyncStorage.getItem('userEmail');
-    const name = await AsyncStorage.getItem('userName');
-    const candidateId = await AsyncStorage.getItem('candidateId');
-    const companyId = await AsyncStorage.getItem('companyId');
-    return { userId, role, email, name, candidateId, companyId };
+    try {
+      
+      if (cachedUser) {
+        console.log('Usando cache de memória');
+        return cachedUser;
+      }
+
+      const email = await AsyncStorage.getItem('userEmail');
+      if (!email) {
+        throw new Error('Usuário não autenticado');
+      }
+
+      console.log('🔍 Buscando dados do servidor...');
+
+      // 1. Buscar user pelo email
+      const usersResponse = await api.get(`/users?page=0&size=100`);
+      const user = usersResponse.data.content.find(u => u.email === email);
+
+      if (!user) {
+        throw new Error('Usuário não encontrado');
+      }
+
+      console.log('✅ User encontrado:', user.id);
+
+      // 2. Buscar candidato pelo userId
+      let candidateId = null;
+      if (user.userRole === 'CANDIDATE') {
+        try {
+          const candidatesResponse = await api.get(`/candidates?page=0&size=100`);
+          const candidate = candidatesResponse.data.content.find(c => c.userId === user.id);
+          
+          if (candidate) {
+            candidateId = candidate.id.toString();
+            console.log('✅ Candidate encontrado:', candidateId);
+          } else {
+            console.log('⚠️ Candidate não encontrado para userId:', user.id);
+          }
+        } catch (error) {
+          console.log('Erro ao buscar candidato:', error.message);
+        }
+      }
+
+      // 3. Buscar company pelo userId (se for empresa)
+      let companyId = null;
+      if (user.userRole === 'COMPANY') {
+        try {
+          const companiesResponse = await api.get(`/companies?page=0&size=100`);
+          const company = companiesResponse.data.content.find(c => c.userId === user.id);
+          
+          if (company) {
+            companyId = company.id.toString();
+            console.log('✅ Company encontrada:', companyId);
+          }
+        } catch (error) {
+          console.log('Erro ao buscar empresa:', error.message);
+        }
+      }
+
+      // Montar objeto do usuário
+      const userData = {
+        userId: user.id.toString(),
+        candidateId,
+        companyId,
+        email: user.email,
+        name: user.name,
+        role: user.userRole,
+      };
+
+      // Guardar em cache de memória
+      cachedUser = userData;
+
+      console.log('📦 Dados do usuário:', userData);
+      return userData;
+
+    } catch (error) {
+      console.error('Erro em getCurrentUser:', error);
+      throw error;
+    }
+  },
+
+  // Função para limpar cache e forçar nova busca
+  refreshUser: async () => {
+    cachedUser = null;
+    return await authService.getCurrentUser();
   },
 };
 
@@ -133,6 +180,8 @@ export const userService = {
 
   atualizar: async (id, dados) => {
     const response = await api.put(`/users/${id}`, dados);
+    
+    cachedUser = null;
     return response.data;
   },
 
@@ -145,6 +194,8 @@ export const userService = {
 export const candidateService = {
   criar: async (dados) => {
     const response = await api.post('/candidates', dados);
+    
+    cachedUser = null;
     return response.data;
   },
 
@@ -163,11 +214,15 @@ export const candidateService = {
 
   atualizar: async (id, dados) => {
     const response = await api.put(`/candidates/${id}`, dados);
+    
+    cachedUser = null;
     return response.data;
   },
 
   deletar: async (id) => {
     const response = await api.delete(`/candidates/${id}`);
+    
+    cachedUser = null;
     return response.data;
   },
 };
@@ -251,7 +306,6 @@ export const candidacyService = {
 
   listarPorCandidato: async (candidateId, page = 0, size = 10) => {
     const response = await api.get(`/candidacies/candidates/${candidateId}?page=${page}&size=${size}`);
-    // A API retorna array direto, não objeto paginado
     return {
       content: Array.isArray(response.data) ? response.data : [],
       totalElements: Array.isArray(response.data) ? response.data.length : 0,

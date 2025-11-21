@@ -1,12 +1,10 @@
 import { Text, TextInput, StyleSheet, View, Alert, TouchableOpacity, StatusBar, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { Picker } from '@react-native-picker/picker';
 import { Colors } from "../constants/Colors";
 import { userService, authService, candidateService } from "../services/api";
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function Cadastro() {
   const [nome, setNome] = useState("");
@@ -16,31 +14,11 @@ export default function Cadastro() {
   const [telefone, setTelefone] = useState("");
   const [cidade, setCidade] = useState("");
   const [estado, setEstado] = useState("");
-  const [tipoDeficiencia, setTipoDeficiencia] = useState("PHYSICAL");
-  const [habilidades, setHabilidades] = useState("");
-  const [experiencia, setExperiencia] = useState("");
-  const [acessibilidadeNecessaria, setAcessibilidadeNecessaria] = useState("");
   const [senhaVisivel, setSenhaVisivel] = useState(false);
   const [confirmarSenhaVisivel, setConfirmarSenhaVisivel] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // LIMPA TUDO quando a tela carrega
-  useEffect(() => {
-    limparTudo();
-  }, []);
-
-  async function limparTudo() {
-    try {
-      console.log('🧹 Limpando AsyncStorage ao entrar na tela de cadastro...');
-      await AsyncStorage.clear();
-      console.log('✅ AsyncStorage limpo!');
-    } catch (error) {
-      console.error('Erro ao limpar AsyncStorage:', error);
-    }
-  }
-
   async function handleCadastrar() {
-    // Validações
     if (!nome || !email || !senha || !confirmarSenha) {
         Alert.alert("Atenção", "Por favor, preencha todos os campos obrigatórios.");
         return;
@@ -59,60 +37,56 @@ export default function Cadastro() {
     setLoading(true);
     
     try {
-        console.log('=== GARANTINDO LIMPEZA TOTAL ===');
-        await AsyncStorage.clear();
-        await new Promise(resolve => setTimeout(resolve, 300));
-        console.log('✅ Tudo limpo antes de criar usuário');
-
-        // 1. Criar usuário SEM estar logado
         const dadosUsuario = {
             name: nome.trim(),
             email: email.trim().toLowerCase(),
             password: senha,
             userRole: "CANDIDATE",
-            city: (cidade && cidade.trim()) || "São Paulo",
-            state: (estado && estado.trim()) || "SP",
-            phone: (telefone && telefone.trim()) || "11999999999"
+            city: cidade.trim() || "São Paulo",
+            state: estado.trim() || "SP",
+            phone: telefone.trim() || "11999999999"
         };
 
-        console.log('=== CRIANDO USUÁRIO ===');
+        console.log("Criando usuário:", dadosUsuario);
+
+        // 1. Criar o usuário
         const userResponse = await userService.criar(dadosUsuario);
-        console.log('✅ Usuário criado:', userResponse.id);
-        
-        const userId = userResponse.id;
+        console.log("✅ Usuário criado:", userResponse.id);
 
-        // 2. Fazer login
-        console.log('=== FAZENDO LOGIN ===');
+        // 2. Fazer login automático
         await authService.login(email.trim().toLowerCase(), senha);
-        
-        // 3. Aguardar token ser salvo
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        const token = await AsyncStorage.getItem('token');
-        if (!token) {
-            throw new Error('Token não foi salvo. Faça login manualmente.');
+        console.log("✅ Login realizado");
+
+        // 3. Buscar o usuário atual para pegar o userId
+        const currentUser = await authService.getCurrentUser();
+        console.log("✅ User atual:", currentUser);
+
+        // 4. Criar o registro de candidato
+        if (currentUser.userId) {
+            try {
+                const dadosCandidato = {
+                    userId: parseInt(currentUser.userId),
+                    disabilityType: "PHYSICAL",
+                    skills: "A preencher",
+                    experience: "A preencher",
+                    requiredAcessibility: "A preencher"
+                };
+
+                console.log("Criando candidato:", dadosCandidato);
+                const candidateResponse = await candidateService.criar(dadosCandidato);
+                console.log("✅ Candidato criado:", candidateResponse.id);
+                
+                
+                await authService.refreshUser();
+            } catch (candidateError) {
+                console.error("Erro ao criar candidato:", candidateError);
+                
+            }
         }
-        
-        console.log('✅ Login efetuado');
-
-        // 4. Criar perfil de candidato
-        const dadosCandidato = {
-            userId: userId,
-            disabilityType: tipoDeficiencia,
-            skills: (habilidades && habilidades.trim()) || "Não informado",
-            experience: (experiencia && experiencia.trim()) || "Não informado",
-            requiredAcessibility: (acessibilidadeNecessaria && acessibilidadeNecessaria.trim()) || "Não informado"
-        };
-
-        console.log('=== CRIANDO PERFIL CANDIDATO ===');
-        const candidateResponse = await candidateService.criar(dadosCandidato);
-        console.log('✅ Perfil candidato criado:', candidateResponse.id);
-        
-        await AsyncStorage.setItem('candidateId', candidateResponse.id.toString());
 
         Alert.alert(
             "Sucesso",
-            "Cadastro realizado com sucesso!",
+            "Conta criada com sucesso!",
             [
                 {
                     text: "OK",
@@ -122,22 +96,20 @@ export default function Cadastro() {
         );
 
     } catch (error) {
-        console.error('=== ERRO ===');
-        console.error('Mensagem:', error.message);
-        console.error('Status:', error.response?.status);
-        console.error('Data:', error.response?.data);
-        
+        console.error("Erro no cadastro:", error);
         let mensagemErro = "Não foi possível criar a conta.";
         
         if (error.response?.status === 401) {
-            mensagemErro = "Problema de autenticação no backend. Use o Insomnia para criar o usuário e depois faça login no app.";
+            mensagemErro = "Erro de autenticação. Entre em contato com o suporte.";
         } else if (error.response?.status === 409) {
-            mensagemErro = "Este e-mail já está cadastrado. Tente fazer login.";
+            mensagemErro = "Este e-mail já está cadastrado. Faça login.";
         } else if (error.response?.status === 400) {
-            mensagemErro = error.response?.data?.message || "Dados inválidos. Verifique todos os campos.";
+            mensagemErro = error.response?.data?.message || "Dados inválidos.";
+        } else if (error.message.includes('Network')) {
+            mensagemErro = "Sem conexão com o servidor. Verifique sua internet.";
         }
         
-        Alert.alert("Erro", mensagemErro, [{ text: "OK" }]);
+        Alert.alert("Erro", mensagemErro);
         
     } finally {
         setLoading(false);
@@ -317,63 +289,6 @@ export default function Cadastro() {
               </View>
             </View>
 
-            <View style={styles.formCard}>
-              <Text style={styles.formTitle}>Perfil Profissional</Text>
-
-              <View style={styles.pickerContainer}>
-                <Ionicons
-                  name="accessibility-outline"
-                  size={20}
-                  color={Colors.textLight}
-                  style={styles.inputIcon}
-                />
-                <Picker
-                  selectedValue={tipoDeficiencia}
-                  style={styles.picker}
-                  onValueChange={(itemValue) => setTipoDeficiencia(itemValue)}
-                  dropdownIconColor={Colors.white}
-                >
-                  <Picker.Item label="Deficiência Física" value="PHYSICAL" />
-                  <Picker.Item label="Deficiência Visual" value="VISUAL" />
-                  <Picker.Item label="Deficiência Auditiva" value="AUDITORY" />
-                  <Picker.Item label="Deficiência Cognitiva" value="COGNITIVE" />
-                </Picker>
-              </View>
-
-              <View style={[styles.inputContainer, styles.textAreaContainer]}>
-                <TextInput
-                  style={[styles.input, styles.textArea]}
-                  placeholder="Habilidades (opcional)"
-                  placeholderTextColor={Colors.textLight}
-                  value={habilidades}
-                  onChangeText={setHabilidades}
-                  multiline
-                />
-              </View>
-
-              <View style={[styles.inputContainer, styles.textAreaContainer]}>
-                <TextInput
-                  style={[styles.input, styles.textArea]}
-                  placeholder="Experiência Profissional (opcional)"
-                  placeholderTextColor={Colors.textLight}
-                  value={experiencia}
-                  onChangeText={setExperiencia}
-                  multiline
-                />
-              </View>
-
-              <View style={[styles.inputContainer, styles.textAreaContainer]}>
-                <TextInput
-                  style={[styles.input, styles.textArea]}
-                  placeholder="Acessibilidade Necessária (opcional)"
-                  placeholderTextColor={Colors.textLight}
-                  value={acessibilidadeNecessaria}
-                  onChangeText={setAcessibilidadeNecessaria}
-                  multiline
-                />
-              </View>
-            </View>
-
             {loading ? (
               <View style={styles.botaoCadastrar}>
                 <ActivityIndicator size="small" color={Colors.background} />
@@ -528,30 +443,6 @@ const styles = StyleSheet.create({
     height: 56,
     borderWidth: 1,
     borderColor: Colors.border,
-  },
-  pickerContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: Colors.inputBg,
-    borderRadius: 14,
-    marginBottom: 16,
-    paddingHorizontal: 16,
-    height: 56,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  picker: {
-    flex: 1,
-    color: Colors.white,
-  },
-  textAreaContainer: {
-    height: 100,
-    alignItems: "flex-start",
-    paddingVertical: 12,
-  },
-  textArea: {
-    height: 76,
-    textAlignVertical: "top",
   },
   rowInputs: {
     flexDirection: "row",

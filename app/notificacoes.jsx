@@ -5,7 +5,6 @@ import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors, Fonts } from "../constants/Colors";
 import { candidacyService, authService } from "../services/api";
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function Notificacoes() {
   const [notificacoes, setNotificacoes] = useState([]);
@@ -13,53 +12,43 @@ export default function Notificacoes() {
 
   useEffect(() => {
     carregarNotificacoes();
-    marcarComoLidas();
+    
   }, []);
 
   async function carregarNotificacoes() {
-  setLoading(true);
-  try {
-    const user = await authService.getCurrentUser();
-    if (user.candidateId) {
-      const response = await candidacyService.listarPorCandidato(user.candidateId, 0, 20);
-      
-      // CORREÇÃO: Verificar se content existe
-      const candidaturas = response?.content || [];
-      
-      // Transformar candidaturas em notificações
-      const notifs = candidaturas.map(c => ({
-        id: c.id,
-        tipo: c.status === 'UNDER_ANALYSIS' ? 'candidatura' : 'status',
-        titulo: c.status === 'UNDER_ANALYSIS' 
-          ? 'Candidatura enviada' 
-          : c.status === 'APPROVED' 
-            ? 'Candidatura aprovada!' 
-            : 'Candidatura não aprovada',
-        mensagem: c.status === 'UNDER_ANALYSIS'
-          ? `Você se candidatou para ${c.vacancyTitle || 'vaga'} na empresa ${c.companyName || 'empresa'}`
-          : c.status === 'APPROVED'
-            ? `Parabéns! Sua candidatura para ${c.vacancyTitle || 'vaga'} foi aprovada`
-            : `Sua candidatura para ${c.vacancyTitle || 'vaga'} não foi aprovada desta vez`,
-        data: new Date(c.applicationDate),
-        status: c.status,
-        vacancyId: c.vacancyId,
-      }));
-      
-      setNotificacoes(notifs);
-    }
-  } catch (error) {
-    console.error("Erro ao carregar notificações:", error);
-    setNotificacoes([]);
-  } finally {
-    setLoading(false);
-  }
-}
-
-  async function marcarComoLidas() {
+    setLoading(true);
     try {
-      await AsyncStorage.setItem('lastNotificationCheck', new Date().toISOString());
+      const user = await authService.getCurrentUser();
+      if (user.candidateId) {
+        const response = await candidacyService.listarPorCandidato(user.candidateId, 0, 20);
+        
+        const candidaturas = response?.content || [];
+        
+        const notifs = candidaturas.map(c => ({
+          id: c.id,
+          tipo: c.status === 'UNDER_ANALYSIS' ? 'candidatura' : 'status',
+          titulo: c.status === 'UNDER_ANALYSIS' 
+            ? 'Candidatura enviada' 
+            : c.status === 'APPROVED' 
+              ? 'Candidatura aprovada!' 
+              : 'Candidatura não aprovada',
+          mensagem: c.status === 'UNDER_ANALYSIS'
+            ? `Você se candidatou para ${c.vacancyTitle || 'vaga'} na empresa ${c.companyName || 'empresa'}`
+            : c.status === 'APPROVED'
+              ? `Parabéns! Sua candidatura para ${c.vacancyTitle || 'vaga'} foi aprovada`
+              : `Sua candidatura para ${c.vacancyTitle || 'vaga'} não foi aprovada desta vez`,
+          data: new Date(c.applicationDate),
+          status: c.status,
+          vacancyId: c.vacancyId,
+        }));
+        
+        setNotificacoes(notifs);
+      }
     } catch (error) {
-      console.error("Erro ao marcar notificações:", error);
+      console.error("Erro ao carregar notificações:", error);
+      setNotificacoes([]);
+    } finally {
+      setLoading(false);
     }
   }
 

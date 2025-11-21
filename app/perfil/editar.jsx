@@ -5,7 +5,7 @@ import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Picker } from '@react-native-picker/picker';
 import { Colors, Fonts } from "../../constants/Colors";
-import { candidateService, userService, authService } from "../../services/api";
+import { candidateService, userService, authService, candidacyService } from "../../services/api";
 
 export default function EditarPerfil() {
   const [nome, setNome] = useState("");
@@ -32,6 +32,8 @@ export default function EditarPerfil() {
     setLoadingData(true);
     try {
       const user = await authService.getCurrentUser();
+      console.log('Usuário atual:', user);
+      
       setUserId(user.userId);
       setCandidateId(user.candidateId);
 
@@ -45,11 +47,15 @@ export default function EditarPerfil() {
       }
 
       if (user.candidateId) {
-        const candidateData = await candidateService.buscarPorId(user.candidateId);
-        setTipoDeficiencia(candidateData.disabilityType || "PHYSICAL");
-        setHabilidades(candidateData.skills || "");
-        setExperiencia(candidateData.experience || "");
-        setAcessibilidadeNecessaria(candidateData.requiredAcessibility || "");
+        try {
+          const candidateData = await candidateService.buscarPorId(user.candidateId);
+          setTipoDeficiencia(candidateData.disabilityType || "PHYSICAL");
+          setHabilidades(candidateData.skills || "");
+          setExperiencia(candidateData.experience || "");
+          setAcessibilidadeNecessaria(candidateData.requiredAcessibility || "");
+        } catch (error) {
+          console.error("Erro ao carregar candidato:", error);
+        }
       }
     } catch (error) {
       console.error("Erro ao carregar dados:", error);
@@ -74,24 +80,43 @@ export default function EditarPerfil() {
     try {
       if (userId) {
         await userService.atualizar(userId, {
-          name: nome,
-          email: email,
+          name: nome.trim(),
+          email: email.trim().toLowerCase(),
           password: senha,
-          phone: telefone,
-          city: cidade,
-          state: estado || "SP",
+          phone: telefone.trim(),
+          city: cidade.trim(),
+          state: estado.trim() || "SP",
           userRole: "CANDIDATE",
         });
+        console.log('✅ Usuário atualizado');
       }
 
+      const dadosCandidato = {
+        userId: parseInt(userId),
+        disabilityType: tipoDeficiencia || "PHYSICAL",
+        skills: habilidades.trim() || "Não informado",
+        experience: experiencia.trim() || "Não informado",
+        requiredAcessibility: acessibilidadeNecessaria.trim() || "Não informado",
+      };
+
       if (candidateId) {
-        await candidateService.atualizar(candidateId, {
-          disabilityType: tipoDeficiencia || "PHYSICAL",
-          skills: habilidades || "Não informado",
-          experience: experiencia || "Não informado",
-          requiredAccessibility: acessibilidadeNecessaria || "Não informado",
-        });
+        await candidateService.atualizar(candidateId, dadosCandidato);
+        console.log('✅ Candidato atualizado');
+      } else {
+        if (userId) {
+          const novoCandidato = {
+            ...dadosCandidato,
+            userId: parseInt(userId)
+          };
+          
+          console.log('Criando candidato:', novoCandidato);
+          const candidateResponse = await candidateService.criar(novoCandidato);
+          setCandidateId(candidateResponse.id);
+          console.log('✅ Candidato criado:', candidateResponse.id);
+        }
       }
+
+      await authService.refreshUser();
 
       Alert.alert(
         "Sucesso",
@@ -101,45 +126,173 @@ export default function EditarPerfil() {
     } catch (error) {
       console.error("Erro ao atualizar perfil:", error);
       
+      let mensagemErro = "Não foi possível atualizar o perfil.";
+      
       if (error.response?.status === 401 || error.response?.status === 403) {
-        Alert.alert("Erro", "Senha incorreta. Tente novamente.");
+        mensagemErro = "Senha incorreta. Tente novamente.";
+      } else if (error.response?.status === 409) {
+        mensagemErro = "Já existe um candidato para este usuário.";
       } else if (error.response?.status === 400) {
-        Alert.alert("Erro", "Dados inválidos. Verifique os campos e tente novamente.");
-      } else {
-        Alert.alert("Erro", "Não foi possível atualizar o perfil. Tente novamente.");
+        mensagemErro = error.response?.data?.message || "Dados inválidos.";
+      } else if (error.message?.includes('Network')) {
+        mensagemErro = "Sem conexão com o servidor.";
       }
+      
+      Alert.alert("Erro", mensagemErro);
+      
     } finally {
       setLoading(false);
     }
   }
 
   async function handleDeletarConta() {
-    Alert.alert(
-      "Deletar conta",
-      "Tem certeza que deseja deletar sua conta? Esta ação não pode ser desfeita.",
-      [
-        { text: "Cancelar", style: "cancel" },
-        { 
-          text: "Deletar", 
-          style: "destructive",
-          onPress: async () => {
-            try {
-              if (candidateId) {
-                await candidateService.deletar(candidateId);
+    try {
+      if (candidateId) {
+        const candidaturasResponse = await candidacyService.listarPorCandidato(candidateId);
+        const candidaturasAtivas = candidaturasResponse.content || [];
+        
+        if (candidaturasAtivas.length > 0) {
+          Alert.alert(
+            "Candidaturas Ativas",
+            `Você tem ${candidaturasAtivas.length} candidatura(s) ativa(s). Para deletar sua conta, você precisa primeiro cancelar todas as candidaturas.`,
+            [
+              { text: "Cancelar", style: "cancel" },
+              { 
+                text: "Ver Candidaturas", 
+                onPress: () => mostrarCandidaturas(candidaturasAtivas)
               }
-              if (userId) {
-                await userService.deletar(userId);
-              }
-              await authService.logout();
-              router.replace("/");
-            } catch (error) {
-              console.error("Erro ao deletar conta:", error);
-              Alert.alert("Erro", "Não foi possível deletar a conta.");
-            }
+            ]
+          );
+          return;
+        }
+      }
+
+      Alert.alert(
+        "Deletar conta",
+        "Tem certeza que deseja deletar sua conta? Esta ação não pode ser desfeita.",
+        [
+          { text: "Cancelar", style: "cancel" },
+          { 
+            text: "Deletar", 
+            style: "destructive",
+            onPress: confirmarDelecao
           }
+        ]
+      );
+
+    } catch (error) {
+      console.error("Erro ao verificar candidaturas:", error);
+      Alert.alert("Erro", "Não foi possível verificar as candidaturas.");
+    }
+  }
+
+  function mostrarCandidaturas(candidaturas) {
+    const mensagem = candidaturas.map((c, i) => 
+      `${i + 1}. Vaga ID: ${c.vacancyId} - Status: ${c.status}`
+    ).join('\n');
+
+    Alert.alert(
+      "Suas Candidaturas",
+      mensagem + "\n\nDeseja cancelar TODAS as candidaturas e deletar a conta?",
+      [
+        { text: "Não", style: "cancel" },
+        { 
+          text: "Sim, deletar tudo", 
+          style: "destructive",
+          onPress: () => deletarCandidaturasEConta(candidaturas)
         }
       ]
     );
+  }
+
+  async function deletarCandidaturasEConta(candidaturas) {
+    try {
+      setLoading(true);
+
+      console.log('Deletando candidaturas...');
+      for (const candidatura of candidaturas) {
+        await candidacyService.deletar(candidatura.id);
+        console.log(`Candidatura ${candidatura.id} deletada`);
+      }
+
+      if (candidateId) {
+        await candidateService.deletar(candidateId);
+        console.log('Candidato deletado');
+      }
+
+      if (userId) {
+        await userService.deletar(userId);
+        console.log('Usuário deletado');
+      }
+
+      await authService.logout();
+      
+      Alert.alert(
+        "Conta deletada",
+        "Sua conta e todas as candidaturas foram deletadas com sucesso.",
+        [{ text: "OK", onPress: () => router.replace("/") }]
+      );
+
+    } catch (error) {
+      console.error("Erro ao deletar:", error);
+      Alert.alert("Erro", "Não foi possível deletar completamente. Tente novamente.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function confirmarDelecao() {
+    try {
+      setLoading(true);
+
+      if (candidateId) {
+        await candidateService.deletar(candidateId);
+      }
+
+      if (userId) {
+        await userService.deletar(userId);
+      }
+
+      await authService.logout();
+
+      Alert.alert(
+        "Sucesso",
+        "Conta deletada com sucesso.",
+        [{ text: "OK", onPress: () => router.replace("/") }]
+      );
+
+    } catch (error) {
+      console.error("Erro ao deletar conta:", error);
+      Alert.alert("Erro", "Não foi possível deletar a conta.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function verMinhasCandidaturas() {
+    try {
+      if (!candidateId) {
+        Alert.alert("Aviso", "Perfil de candidato não encontrado.");
+        return;
+      }
+
+      setLoading(true);
+      const response = await candidacyService.listarPorCandidato(candidateId);
+      const candidaturas = response.content || [];
+
+      if (candidaturas.length === 0) {
+        Alert.alert("Suas Candidaturas", "Você ainda não se candidatou a nenhuma vaga.");
+        return;
+      }
+
+      router.push("/candidaturas");
+
+    } catch (error) {
+      console.error("Erro ao buscar candidaturas:", error);
+      Alert.alert("Erro", "Não foi possível carregar suas candidaturas.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   function voltar() {
@@ -185,6 +338,7 @@ export default function EditarPerfil() {
                 placeholderTextColor={Colors.textLight}
                 value={nome}
                 onChangeText={setNome}
+                autoCapitalize="words"
               />
             </View>
           </View>
@@ -225,6 +379,7 @@ export default function EditarPerfil() {
                 />
               </TouchableOpacity>
             </View>
+            <Text style={styles.helperText}>Digite sua senha atual para confirmar as alterações</Text>
           </View>
 
           <View style={styles.inputGroup}>
@@ -286,10 +441,10 @@ export default function EditarPerfil() {
                 style={styles.picker}
                 dropdownIconColor={Colors.textLight}
               >
-                <Picker.Item label="Física" value="PHYSICAL" />
-                <Picker.Item label="Visual" value="VISUAL" />
-                <Picker.Item label="Auditiva" value="AUDITORY" />
-                <Picker.Item label="Cognitiva" value="COGNITIVE" />
+                <Picker.Item label="Deficiência Física" value="PHYSICAL" />
+                <Picker.Item label="Deficiência Visual" value="VISUAL" />
+                <Picker.Item label="Deficiência Auditiva" value="AUDITIVY" />
+                <Picker.Item label="Deficiência Intelectual" value="COGNITIVE" />
               </Picker>
             </View>
           </View>
@@ -300,7 +455,7 @@ export default function EditarPerfil() {
               <Ionicons name="code-outline" size={20} color={Colors.textLight} />
               <TextInput
                 style={styles.input}
-                placeholder="Separe por vírgula"
+                placeholder="Ex: JavaScript, React, Python"
                 placeholderTextColor={Colors.textLight}
                 value={habilidades}
                 onChangeText={setHabilidades}
@@ -318,7 +473,7 @@ export default function EditarPerfil() {
                 value={experiencia}
                 onChangeText={setExperiencia}
                 multiline
-                numberOfLines={3}
+                numberOfLines={4}
               />
             </View>
           </View>
@@ -333,22 +488,33 @@ export default function EditarPerfil() {
                 value={acessibilidadeNecessaria}
                 onChangeText={setAcessibilidadeNecessaria}
                 multiline
-                numberOfLines={3}
+                numberOfLines={4}
               />
             </View>
           </View>
         </View>
 
         <View style={styles.section}>
+          {loading ? (
+            <View style={styles.salvarButton}>
+              <ActivityIndicator size="small" color={Colors.background} />
+            </View>
+          ) : (
+            <TouchableOpacity 
+              style={styles.salvarButton} 
+              onPress={handleSalvar}
+            >
+              <Ionicons name="checkmark-circle" size={24} color={Colors.background} />
+              <Text style={styles.salvarText}>Salvar alterações</Text>
+            </TouchableOpacity>
+          )}
+
           <TouchableOpacity 
-            style={styles.salvarButton} 
-            onPress={handleSalvar}
-            disabled={loading}
+            style={styles.candidaturasButton} 
+            onPress={verMinhasCandidaturas}
           >
-            <Ionicons name="checkmark-circle" size={24} color={Colors.background} />
-            <Text style={styles.salvarText}>
-              {loading ? "Salvando..." : "Salvar alterações"}
-            </Text>
+            <Ionicons name="briefcase-outline" size={20} color={Colors.primary} />
+            <Text style={styles.candidaturasText}>Minhas Candidaturas</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.deletarButton} onPress={handleDeletarConta}>
@@ -423,6 +589,13 @@ const styles = StyleSheet.create({
     color: Colors.textLight,
     marginBottom: 8,
   },
+  helperText: {
+    fontSize: 12,
+    fontFamily: Fonts.regular,
+    color: Colors.textLight,
+    marginTop: 6,
+    fontStyle: "italic",
+  },
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
@@ -450,7 +623,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   textAreaContainer: {
-    height: 100,
+    height: 110,
     alignItems: "flex-start",
     paddingVertical: 12,
   },
@@ -461,7 +634,7 @@ const styles = StyleSheet.create({
     color: Colors.white,
   },
   textArea: {
-    height: 76,
+    height: 86,
     textAlignVertical: "top",
   },
   salvarButton: {
@@ -484,6 +657,23 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bold,
     color: Colors.background,
   },
+  candidaturasButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 16,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+    gap: 10,
+    backgroundColor: Colors.backgroundCard,
+    marginBottom: 12,
+  },
+  candidaturasText: {
+    fontSize: 16,
+    fontFamily: Fonts.semiBold,
+    color: Colors.primary,
+  },
   deletarButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -493,6 +683,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.error,
     gap: 10,
+    backgroundColor: Colors.backgroundCard,
   },
   deletarText: {
     fontSize: 16,

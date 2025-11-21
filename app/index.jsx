@@ -12,6 +12,7 @@ export default function Index() {
   const [senhaVisivel, setSenhaVisivel] = useState(false);
   const [loading, setLoading] = useState(false);
 
+
   async function handleContinuar() {
     if (!email || !senha) {
       Alert.alert("Atenção", "Por favor, preencha todos os campos.");

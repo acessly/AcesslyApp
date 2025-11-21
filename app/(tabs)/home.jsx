@@ -6,7 +6,6 @@ import { useLocalSearchParams, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors, Fonts } from "../../constants/Colors";
 import { vacancyService, candidacyService, authService } from "../../services/api";
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function Home() {
   const { email } = useLocalSearchParams();
@@ -16,11 +15,11 @@ export default function Home() {
   const [notificacoesNovas, setNotificacoesNovas] = useState(0);
 
   useFocusEffect(
-  useCallback(() => {
-    carregarDados();
-    verificarNotificacoes();
-  }, [])
-);
+    useCallback(() => {
+      carregarDados();
+      verificarNotificacoes();
+    }, [])
+  );
 
   async function carregarDados() {
     try {
@@ -40,33 +39,25 @@ export default function Home() {
   }
 
   async function verificarNotificacoes() {
-  try {
-    const user = await authService.getCurrentUser();
-    if (user.candidateId) {
-      const lastCheck = await AsyncStorage.getItem('lastNotificationCheck');
-      const candidaturasResponse = await candidacyService.listarPorCandidato(user.candidateId, 0, 20);
-      
-      
-      if (!candidaturasResponse || !candidaturasResponse.content) {
-        setNotificacoesNovas(0);
-        return;
-      }
+    try {
+      const user = await authService.getCurrentUser();
+      if (user.candidateId) {
+        const candidaturasResponse = await candidacyService.listarPorCandidato(user.candidateId, 0, 20);
+        
+        if (!candidaturasResponse || !candidaturasResponse.content) {
+          setNotificacoesNovas(0);
+          return;
+        }
 
-      if (lastCheck) {
-        const lastCheckDate = new Date(lastCheck);
-        const novas = candidaturasResponse.content.filter(c => 
-          new Date(c.applicationDate) > lastCheckDate || c.status !== 'UNDER_ANALYSIS'
-        );
+        // Contar candidaturas com status diferente de UNDER_ANALYSIS como notificações novas
+        const novas = candidaturasResponse.content.filter(c => c.status !== 'UNDER_ANALYSIS');
         setNotificacoesNovas(novas.length);
-      } else {
-        setNotificacoesNovas(candidaturasResponse.content.length || 0);
       }
+    } catch (error) {
+      console.error("Erro ao verificar notificações:", error);
+      setNotificacoesNovas(0);
     }
-  } catch (error) {
-    console.error("Erro ao verificar notificações:", error);
-    setNotificacoesNovas(0);
   }
-}
 
   function irParaVagas() {
     router.push("/(tabs)/vagas");
