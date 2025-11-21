@@ -49,7 +49,7 @@ export default function Home() {
           return;
         }
 
-        // Contar candidaturas com status diferente de UNDER_ANALYSIS como notificações novas
+        
         const novas = candidaturasResponse.content.filter(c => c.status !== 'UNDER_ANALYSIS');
         setNotificacoesNovas(novas.length);
       }

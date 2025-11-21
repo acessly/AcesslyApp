@@ -49,19 +49,19 @@ export default function Cadastro() {
 
         console.log("Criando usuário:", dadosUsuario);
 
-        // 1. Criar o usuário
+        
         const userResponse = await userService.criar(dadosUsuario);
         console.log("✅ Usuário criado:", userResponse.id);
 
-        // 2. Fazer login automático
+        
         await authService.login(email.trim().toLowerCase(), senha);
         console.log("✅ Login realizado");
 
-        // 3. Buscar o usuário atual para pegar o userId
+        
         const currentUser = await authService.getCurrentUser();
         console.log("✅ User atual:", currentUser);
 
-        // 4. Criar o registro de candidato
+        
         if (currentUser.userId) {
             try {
                 const dadosCandidato = {
