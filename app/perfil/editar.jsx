@@ -443,7 +443,7 @@ export default function EditarPerfil() {
               >
                 <Picker.Item label="Deficiência Física" value="PHYSICAL" />
                 <Picker.Item label="Deficiência Visual" value="VISUAL" />
-                <Picker.Item label="Deficiência Auditiva" value="AUDITIVY" />
+                <Picker.Item label="Deficiência Auditiva" value="AUDITORY" />
                 <Picker.Item label="Deficiência Intelectual" value="COGNITIVE" />
               </Picker>
             </View>

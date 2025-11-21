@@ -11,28 +11,32 @@ const api = axios.create({
   timeout: 30000,
 });
 
-
 let cachedUser = null;
 
 api.interceptors.request.use(
   async (config) => {
-    try {
-      const publicRoutes = ['/auth/login', '/users'];
-      const isPublicRoute = publicRoutes.some(route => config.url.includes(route) && config.method === 'post');
-      
-      if (!isPublicRoute) {
-        
+    const publicRoutes = ['/auth/login', '/users'];
+    const isPublicRoute = publicRoutes.some(route => 
+      config.url.includes(route) && config.method === 'post'
+    );
+    
+    if (!isPublicRoute) {
+      try {
         const token = await AsyncStorage.getItem('token');
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
         }
+      } catch (error) {
+        console.error('Erro ao buscar token:', error);
       }
-    } catch (error) {
-      console.error('Erro ao buscar token:', error);
+    } else {
+      delete config.headers.Authorization;
     }
+    
     return config;
   },
   (error) => {
+    console.error('Erro no interceptor request:', error);
     return Promise.reject(error);
   }
 );
@@ -53,13 +57,11 @@ api.interceptors.response.use(
 
 export const authService = {
   login: async (email, password) => {
-    
     cachedUser = null;
     
     const loginResponse = await api.post('/auth/login', { email, password });
     
     if (loginResponse.data.token) {
-      // SÓ SALVA O TOKEN
       await AsyncStorage.setItem('token', loginResponse.data.token);
       await AsyncStorage.setItem('userEmail', email);
     }
@@ -73,12 +75,9 @@ export const authService = {
     await AsyncStorage.removeItem('userEmail');
   },
 
-  
   getCurrentUser: async () => {
     try {
-      
       if (cachedUser) {
-        console.log('Usando cache de memória');
         return cachedUser;
       }
 
@@ -87,9 +86,6 @@ export const authService = {
         throw new Error('Usuário não autenticado');
       }
 
-      console.log('🔍 Buscando dados do servidor...');
-
-      // 1. Buscar user pelo email
       const usersResponse = await api.get(`/users?page=0&size=100`);
       const user = usersResponse.data.content.find(u => u.email === email);
 
@@ -97,9 +93,6 @@ export const authService = {
         throw new Error('Usuário não encontrado');
       }
 
-      console.log('✅ User encontrado:', user.id);
-
-      // 2. Buscar candidato pelo userId
       let candidateId = null;
       if (user.userRole === 'CANDIDATE') {
         try {
@@ -108,16 +101,12 @@ export const authService = {
           
           if (candidate) {
             candidateId = candidate.id.toString();
-            console.log('✅ Candidate encontrado:', candidateId);
-          } else {
-            console.log('⚠️ Candidate não encontrado para userId:', user.id);
           }
         } catch (error) {
-          console.log('Erro ao buscar candidato:', error.message);
+          console.error('Erro ao buscar candidato:', error.message);
         }
       }
 
-      // 3. Buscar company pelo userId (se for empresa)
       let companyId = null;
       if (user.userRole === 'COMPANY') {
         try {
@@ -126,14 +115,12 @@ export const authService = {
           
           if (company) {
             companyId = company.id.toString();
-            console.log('✅ Company encontrada:', companyId);
           }
         } catch (error) {
-          console.log('Erro ao buscar empresa:', error.message);
+          console.error('Erro ao buscar empresa:', error.message);
         }
       }
 
-      // Montar objeto do usuário
       const userData = {
         userId: user.id.toString(),
         candidateId,
@@ -143,10 +130,7 @@ export const authService = {
         role: user.userRole,
       };
 
-      // Guardar em cache de memória
       cachedUser = userData;
-
-      console.log('📦 Dados do usuário:', userData);
       return userData;
 
     } catch (error) {
@@ -155,7 +139,6 @@ export const authService = {
     }
   },
 
-  // Função para limpar cache e forçar nova busca
   refreshUser: async () => {
     cachedUser = null;
     return await authService.getCurrentUser();
@@ -180,7 +163,6 @@ export const userService = {
 
   atualizar: async (id, dados) => {
     const response = await api.put(`/users/${id}`, dados);
-    
     cachedUser = null;
     return response.data;
   },
@@ -194,7 +176,6 @@ export const userService = {
 export const candidateService = {
   criar: async (dados) => {
     const response = await api.post('/candidates', dados);
-    
     cachedUser = null;
     return response.data;
   },
@@ -214,14 +195,12 @@ export const candidateService = {
 
   atualizar: async (id, dados) => {
     const response = await api.put(`/candidates/${id}`, dados);
-    
     cachedUser = null;
     return response.data;
   },
 
   deletar: async (id) => {
     const response = await api.delete(`/candidates/${id}`);
-    
     cachedUser = null;
     return response.data;
   },

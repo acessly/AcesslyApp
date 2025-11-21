@@ -29,8 +29,8 @@ export default function Cadastro() {
         return;
     }
 
-    if (senha.length < 6) {
-        Alert.alert("Erro", "A senha deve ter pelo menos 6 caracteres.");
+    if (senha.length < 8) {
+        Alert.alert("Erro", "A senha deve ter pelo menos 8 caracteres.");
         return;
     }
 
@@ -250,7 +250,7 @@ export default function Cadastro() {
                 />
                 <TextInput
                   style={styles.input}
-                  placeholder="Telefone (opcional)"
+                  placeholder="Telefone"
                   placeholderTextColor={Colors.textLight}
                   value={telefone}
                   onChangeText={setTelefone}
@@ -268,7 +268,7 @@ export default function Cadastro() {
                   />
                   <TextInput
                     style={styles.input}
-                    placeholder="Cidade (opcional)"
+                    placeholder="Cidade"
                     placeholderTextColor={Colors.textLight}
                     value={cidade}
                     onChangeText={setCidade}
